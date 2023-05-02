@@ -3,19 +3,19 @@
         "period": 30
     },
     "database": {
-        "host": "",
         "applicationName": "",
         "databaseName": "",
-        "username": "",
+        "host": "",
+        "password": "",
         "port": 5432,
-        "password": ""
+        "username": ""
     },
     "discord": {
+        "applicationId": "",
+        "githubUrl": "",
         "publicKey": "",
         "token": "",
-        "applicationId": "",
-        "userAgent": "",
-        "githubUrl": ""
+        "userAgent": ""
     },
     "logging": {
         "level": "Debug",
@@ -25,8 +25,9 @@
     },
     "server": {
         "address": "",
+        "basePath": "/",
         "port": 8080,
-        "requestReadTimeout": 30,
-        "requestMemoryLimit": 65536
+        "requestMemoryLimit": 65536,
+        "requestReadTimeout": 30
     }
 }

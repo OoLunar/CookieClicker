@@ -21,6 +21,7 @@ services:
     - CookieClicker_Logging__Level=""
     - CookieClicker_Logging__Overrides__Microsoft.EntityFrameworkCore=""
     - CookieClicker_Server__Address=""
+    - CookieClicker_Server__BasePath=""
     - CookieClicker_Server__Port=""
     - CookieClicker_Server__RequestMemoryLimit=""
     - CookieClicker_Server__RequestReadTimeout=""
