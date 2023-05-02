@@ -1,6 +1,13 @@
 on:
   release:
-    types: [published]
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag'
+        required: true
+        default: 'latest'
 
 jobs:
   push-to-registery:
