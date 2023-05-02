@@ -3,7 +3,12 @@
         "period": 30
     },
     "database": {
-        "host": ""
+        "host": "",
+        "applicationName": "",
+        "databaseName": "",
+        "username": "",
+        "port": 5432,
+        "password": ""
     },
     "discord": {
         "publicKey": "",
@@ -22,6 +27,6 @@
         "address": "",
         "port": 8080,
         "requestReadTimeout": 30,
-        "requestMemoryLimit": 1048576
+        "requestMemoryLimit": 65536
     }
 }

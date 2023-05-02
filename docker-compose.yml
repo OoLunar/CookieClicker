@@ -1,0 +1,27 @@
+version: 3.9
+
+services:
+  cookie_clicker:
+    build: .
+    restart: unless-stopped
+    environment:
+    - CookieClicker_CookieTracker__Period=""
+    - CookieClicker_Database__ApplicationName=""
+    - CookieClicker_Database__DatabaseName=""
+    - CookieClicker_Database__Host=""
+    - CookieClicker_Database__Password=""
+    - CookieClicker_Database__Port=""
+    - CookieClicker_Database__Username=""
+    - CookieClicker_Discord__ApplicationId=""
+    - CookieClicker_Discord__GithubUrl=""
+    - CookieClicker_Discord__PublicKey=""
+    - CookieClicker_Discord__Token=""
+    - CookieClicker_Discord__UserAgent=""
+    - CookieClicker_Logging__Level=""
+    - CookieClicker_Logging__Overrides__Microsoft.EntityFrameworkCore=""
+    - CookieClicker_Server__Address=""
+    - CookieClicker_Server__Port=""
+    - CookieClicker_Server__RequestMemoryLimit=""
+    - CookieClicker_Server__RequestReadTimeout=""
+    ports:
+    - 8080:80
