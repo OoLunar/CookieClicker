@@ -38,5 +38,5 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}:latest
-            ghcr.io/${{ github.repository_owner }}:${{ steps.previoustag.outputs.tag }}
+            ghcr.io/oolunar/cookieclicker:latest
+            ghcr.io/oolunar/cookieclicker:${{ steps.previoustag.outputs.tag }}
