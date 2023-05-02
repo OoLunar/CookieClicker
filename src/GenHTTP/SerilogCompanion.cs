@@ -3,7 +3,7 @@ using GenHTTP.Api.Infrastructure;
 using GenHTTP.Api.Protocol;
 using Microsoft.Extensions.Logging;
 
-namespace OoLunar.CookieClicker.Headers
+namespace OoLunar.CookieClicker.GenHttp
 {
     public sealed class SerilogCompanion : IServerCompanion
     {

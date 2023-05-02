@@ -6,12 +6,14 @@ using System.Threading.Tasks;
 using GenHTTP.Api.Infrastructure;
 using GenHTTP.Engine;
 using GenHTTP.Modules.Authentication;
+using GenHTTP.Modules.ErrorHandling;
 using GenHTTP.Modules.Functional;
 using GenHTTP.Modules.Practices;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using OoLunar.CookieClicker.Database;
+using OoLunar.CookieClicker.GenHttp;
 using OoLunar.CookieClicker.Headers;
 using OoLunar.CookieClicker.Routes;
 using Serilog;
@@ -80,21 +82,24 @@ namespace OoLunar.CookieClicker
 
             serviceCollection.AddDbContext<CookieDatabaseContext>((services, options) => CookieDatabaseContext.ConfigureOptions(options, services.GetRequiredService<IConfiguration>()), ServiceLifetime.Scoped);
             serviceCollection.AddSingleton<CookieTracker>();
-            serviceCollection.AddSingleton<InteractionHandler>();
-            serviceCollection.AddSingleton<SerilogCompanion>();
             serviceCollection.AddSingleton<DiscordHeaderAuthentication>();
             serviceCollection.AddSingleton<DiscordSlashCommandHandler>();
+            serviceCollection.AddSingleton<InteractionHandler>();
+            serviceCollection.AddSingleton<JsonErrorMapper>();
+            serviceCollection.AddSingleton<SerilogCompanion>();
             serviceCollection.AddSingleton((serviceProvider) =>
             {
-                IConfiguration configuration = serviceProvider.GetRequiredService<IConfiguration>();
-                SerilogCompanion serilogCompanion = serviceProvider.GetRequiredService<SerilogCompanion>();
                 DiscordHeaderAuthentication discordHeaderAuthentication = serviceProvider.GetRequiredService<DiscordHeaderAuthentication>();
+                IConfiguration configuration = serviceProvider.GetRequiredService<IConfiguration>();
                 InteractionHandler interactionHandler = serviceProvider.GetRequiredService<InteractionHandler>();
+                JsonErrorMapper jsonErrorMapper = serviceProvider.GetRequiredService<JsonErrorMapper>();
+                SerilogCompanion serilogCompanion = serviceProvider.GetRequiredService<SerilogCompanion>();
 
                 return Host.Create()
                     .Defaults()
                     .Companion(serilogCompanion)
                     .Handler(Inline.Create()
+                        .Add(ErrorHandler.From(jsonErrorMapper))
                         .Authentication(ApiKeyAuthentication.Create()
                             .WithHeader("X-Signature-Ed25519")
                             .Authenticator(discordHeaderAuthentication.Authenticate))
