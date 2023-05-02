@@ -17,6 +17,10 @@ namespace OoLunar.CookieClicker.Headers
             {
                 _logger.LogDebug("Handled {Method} request to {Path} with status {Status} {Response}", request.Method.RawMethod, request.Target.Path, response.Status.RawStatus, response.Status.Phrase);
             }
+            else if (response.Status.RawStatus is >= 500 and < 600)
+            {
+                _logger.LogError("Handled {Method} request to {Path} with status {Status} {Response}", request.Method.RawMethod, request.Target.Path, response.Status.RawStatus, response.Status.Phrase);
+            }
             else
             {
                 _logger.LogInformation("Handled {Method} request to {Path} with status {Status} {Response}", request.Method.RawMethod, request.Target.Path, response.Status.RawStatus, response.Status.Phrase);

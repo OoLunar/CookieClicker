@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using GenHTTP.Api.Content;
 using GenHTTP.Api.Protocol;
+using Microsoft.Extensions.Logging;
 using OoLunar.CookieClicker.Entities.Discord.Components;
 using OoLunar.CookieClicker.Entities.Discord.Interactions;
 
@@ -14,31 +15,43 @@ namespace OoLunar.CookieClicker.Routes
     {
         private readonly CookieTracker _cookieTracker;
         private readonly DiscordSlashCommandHandler _slashCommandHandler;
+        private readonly ILogger<InteractionHandler> _logger;
 
-        public InteractionHandler(CookieTracker cookieTracker, DiscordSlashCommandHandler slashCommandHandler)
+        public InteractionHandler(CookieTracker cookieTracker, DiscordSlashCommandHandler slashCommandHandler, ILogger<InteractionHandler> logger)
         {
             ArgumentNullException.ThrowIfNull(cookieTracker, nameof(cookieTracker));
             ArgumentNullException.ThrowIfNull(slashCommandHandler, nameof(slashCommandHandler));
+            ArgumentNullException.ThrowIfNull(logger, nameof(logger));
+
             _cookieTracker = cookieTracker;
             _slashCommandHandler = slashCommandHandler;
+            _logger = logger;
         }
 
         public async Task<DiscordInteractionResponse?> HandleAsync(IRequest request)
         {
-            if (request.Content is null)
+            try
             {
-                throw new ProviderException(ResponseStatus.BadRequest, "Missing interaction");
-            }
+                if (request.Content is null)
+                {
+                    throw new ProviderException(ResponseStatus.BadRequest, "Missing interaction");
+                }
 
-            request.Content.Seek(0, SeekOrigin.Begin);
-            DiscordInteraction interaction = await JsonSerializer.DeserializeAsync<DiscordInteraction>(request.Content) ?? throw new ProviderException(ResponseStatus.BadRequest, "Invalid interaction");
-            return interaction.Type switch
+                request.Content.Seek(0, SeekOrigin.Begin);
+                DiscordInteraction interaction = await JsonSerializer.DeserializeAsync<DiscordInteraction>(request.Content) ?? throw new ProviderException(ResponseStatus.BadRequest, "Invalid interaction");
+                return interaction.Type switch
+                {
+                    DiscordInteractionType.Ping => new DiscordInteractionResponse() { Type = DiscordInteractionResponseType.Pong },
+                    DiscordInteractionType.ApplicationCommand => await CreateCookieAsync(interaction),
+                    DiscordInteractionType.MessageComponent => await ClickCookieAsync(interaction),
+                    _ => throw new ProviderException(ResponseStatus.BadRequest, $"Unknown interaction type: {interaction.Type}")
+                };
+            }
+            catch (Exception error)
             {
-                DiscordInteractionType.Ping => new DiscordInteractionResponse() { Type = DiscordInteractionResponseType.Pong },
-                DiscordInteractionType.ApplicationCommand => await CreateCookieAsync(interaction),
-                DiscordInteractionType.MessageComponent => await ClickCookieAsync(interaction),
-                _ => throw new ProviderException(ResponseStatus.BadRequest, $"Unknown interaction type: {interaction.Type}")
-            };
+                _logger.LogError(error, "Failed to handle interaction");
+                throw;
+            }
         }
 
         private Task<DiscordInteractionResponse?> CreateCookieAsync(DiscordInteraction interaction)
