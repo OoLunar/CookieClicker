@@ -8,6 +8,6 @@ FROM alpine:latest
 WORKDIR /src
 
 COPY --from=build /src/src/bin/Release/net8.0/linux-musl-x64/publish/ /src
-RUN apk upgrade --update-cache --available && apk add openssl icu-libs && rm -rf /var/cache/apk/*
+RUN apk upgrade --update-cache --available && apk add openssl icu-libs libsodium libsodium-dev && rm -rf /var/cache/apk/*
 
 ENTRYPOINT /src/CookieClicker
