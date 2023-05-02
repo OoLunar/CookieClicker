@@ -9,7 +9,7 @@
     <PublishReadyToRun>true</PublishReadyToRun>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <DebugType>embedded</DebugType>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
   </PropertyGroup>
   <Target Name="CopyConfigFile" AfterTargets="AfterBuild">
     <Copy SourceFiles="../res/config.json" DestinationFolder="$(OutDir)" />
