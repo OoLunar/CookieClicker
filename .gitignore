@@ -1,0 +1,5 @@
+.env
+.vscode/
+bin/
+logs/
+obj/

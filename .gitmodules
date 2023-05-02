@@ -1,0 +1,3 @@
+[submodule "libs/GenHTTP"]
+	path = libs/GenHTTP
+	url = git@github.com:Kaliumhexacyanoferrat/GenHTTP.git

@@ -1,0 +1,27 @@
+{
+    "cookieTracker": {
+        "period": 30
+    },
+    "database": {
+        "host": ""
+    },
+    "discord": {
+        "publicKey": "",
+        "token": "",
+        "applicationId": "",
+        "userAgent": "",
+        "githubUrl": ""
+    },
+    "logging": {
+        "level": "Debug",
+        "overrides": {
+            "Microsoft.EntityFrameworkCore": "Warning"
+        }
+    },
+    "server": {
+        "address": "",
+        "port": 8080,
+        "requestReadTimeout": 30,
+        "requestMemoryLimit": 1048576
+    }
+}
