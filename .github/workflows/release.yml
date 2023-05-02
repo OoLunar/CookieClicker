@@ -31,5 +31,5 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            ghcr.io/oolunar/cookieclicker:latest
-            ghcr.io/oolunar/cookieclicker:${{ steps.previoustag.outputs.tag }}
+            ghcr.io/oolunar/cookie_clicker:latest
+            ghcr.io/oolunar/cookie_clicker:${{ steps.previoustag.outputs.tag }}
