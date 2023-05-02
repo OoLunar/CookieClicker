@@ -102,8 +102,8 @@ namespace OoLunar.CookieClicker
                         .Authentication(ApiKeyAuthentication.Create()
                             .WithHeader("X-Signature-Ed25519")
                             .Authenticator(discordHeaderAuthentication.Authenticate))
-                        .Post(configuration.GetValue("Server:BasePath", "/")!, interactionHandler.HandleAsync))
                         .Add(ErrorHandler.From(jsonErrorMapper))
+                        .Post(configuration.GetValue("Server:BasePath", "/")!, interactionHandler.HandleAsync))
                     .Bind(IPAddress.Parse(configuration.GetValue("Server:Address", "127.0.0.1")!), configuration.GetValue<ushort>("Server:Port", 8080))
                     .RequestReadTimeout(TimeSpan.FromSeconds(configuration.GetValue("Server:RequestReadTimeout", 30)))
                     .RequestMemoryLimit(configuration.GetValue<uint>("Server:RequestMemoryLimit", 1024 * 1024 * 10));

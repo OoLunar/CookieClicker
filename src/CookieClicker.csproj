@@ -21,7 +21,7 @@
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
     <RepositoryType>Git</RepositoryType>
     <RepositoryUrl>https://github.com/OoLunar/CookieClicker</RepositoryUrl>
-    <Version>0.1.2</Version>
+    <Version>0.1.4</Version>
   </PropertyGroup>
   <Target Name="CopyConfigFile" AfterTargets="AfterBuild">
     <Copy SourceFiles="../res/config.json" DestinationFolder="$(OutDir)" />
