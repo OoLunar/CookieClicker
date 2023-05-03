@@ -49,7 +49,8 @@ namespace OoLunar.CookieClicker.Database
             };
 
             optionsBuilder.UseNpgsql(connectionBuilder.ToString(), options => options.EnableRetryOnFailure(5).CommandTimeout(5))
-                .UseSnakeCaseNamingConvention();
+                .UseSnakeCaseNamingConvention()
+                .EnableThreadSafetyChecks(false);
         }
     }
 }
