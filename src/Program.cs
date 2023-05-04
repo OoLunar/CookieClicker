@@ -117,8 +117,7 @@ namespace OoLunar.CookieClicker
                         .Description("Privacy Policy for the Cookie Clicker Discord bot: Your data is only collected for the purpose of providing services and is securely stored. We won't share your data with third parties, except as required by law or legal process, or to protect the rights, property, or safety of the Bot, its users, or others."))
                     .Add("terms", ModMarkdown.Page(Resource.FromAssembly(typeof(Program).Assembly, "TermsOfService.md"))
                         .Title("Terms of Service - Cookie Clicker")
-                        .Description("Cookie Clicker Discord bot's Terms of Service outline prohibited conduct, user responsibility, disclaimer of warranty and liability, indemnification, termination, and changes to the terms and conditions. By using the bot, you agree to these terms.")
-                    )
+                        .Description("Cookie Clicker Discord bot's Terms of Service outline prohibited conduct, user responsibility, disclaimer of warranty and liability, indemnification, termination, and changes to the terms and conditions. By using the bot, you agree to these terms."))
                     .Add("favicon.ico", Download.From(Resource.FromAssembly(typeof(Program).Assembly, "res.favicon.ico")))
                     .Add("res", Listing.From(ResourceTree.FromAssembly(typeof(Program).Assembly, "res")))
                     .Index(readme);
@@ -131,14 +130,16 @@ namespace OoLunar.CookieClicker
 
                 LayoutBuilder root = Layout.Create()
                     .Add(textFiles)
-                    .Add("api", inlineBuilder)
-                    .Add(ErrorHandler.From(jsonErrorMapper));
+                    .Add("api", inlineBuilder);
 
-                string? basePath = configuration.GetValue<string>("Server:BasePath");
+                string? basePath = configuration.GetValue<string>("Server:BasePath")?.TrimStart('/');
                 return Host.Create()
                     .Defaults()
                     .Companion(serilogCompanion)
-                    .Handler(string.IsNullOrWhiteSpace(basePath) ? Layout.Create().Add(root) : Layout.Create().Add(basePath!, root))
+                    .Handler((string.IsNullOrWhiteSpace(basePath)
+                        ? Layout.Create().Add(root)
+                        : Layout.Create().Add(basePath, root))
+                            .Add(ErrorHandler.From(jsonErrorMapper)))
                     .Bind(IPAddress.Parse(configuration.GetValue("Server:Address", "127.0.0.1")!), configuration.GetValue<ushort>("Server:Port", 8080))
                     .RequestReadTimeout(TimeSpan.FromSeconds(configuration.GetValue("Server:RequestReadTimeout", 30)))
                     .RequestMemoryLimit(configuration.GetValue<uint>("Server:RequestMemoryLimit", 1024 * 1024 * 10));

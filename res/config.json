@@ -25,7 +25,7 @@
     },
     "server": {
         "address": "",
-        "basePath": "/api",
+        "basePath": "/",
         "port": 8080,
         "requestMemoryLimit": 65536,
         "requestReadTimeout": 30
