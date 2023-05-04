@@ -17,7 +17,6 @@ using GenHTTP.Modules.Practices;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using OoLunar.CookieClicker.Database;
 using OoLunar.CookieClicker.GenHttp;
 using OoLunar.CookieClicker.Headers;
 using OoLunar.CookieClicker.Routes;
@@ -30,6 +29,7 @@ namespace OoLunar.CookieClicker
         {
             ServiceCollection serviceCollection = new();
             ConfigurationBuilder configurationBuilder = new();
+            configurationBuilder.Sources.Clear();
             configurationBuilder.AddJsonFile("config.json", true, true);
             configurationBuilder.AddEnvironmentVariables("CookieClicker_");
             configurationBuilder.AddCommandLine(args);
@@ -37,7 +37,6 @@ namespace OoLunar.CookieClicker
             IConfiguration configuration = configurationBuilder.Build();
             serviceCollection.AddSingleton(configuration);
             serviceCollection.AddLogging(loggingBuilder => HttpLogger.ConfigureLogging(loggingBuilder, configuration));
-            serviceCollection.AddDbContext<CookieDatabaseContext>((services, options) => CookieDatabaseContext.ConfigureOptions(options, services.GetRequiredService<IConfiguration>()), ServiceLifetime.Scoped);
             serviceCollection.AddSingleton<CookieTracker>();
             serviceCollection.AddSingleton<DiscordHeaderAuthentication>();
             serviceCollection.AddSingleton<DiscordSlashCommandHandler>();

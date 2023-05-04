@@ -35,21 +35,18 @@ namespace OoLunar.CookieClicker.Database
                 .ValueGeneratedOnAdd();
         });
 
-        internal static void ConfigureOptions(DbContextOptionsBuilder optionsBuilder, IConfiguration configuration)
+        internal static NpgsqlConnectionStringBuilder GetConnectionString(IConfiguration configuration) => new()
         {
-            NpgsqlConnectionStringBuilder connectionBuilder = new()
-            {
-                ApplicationName = configuration.GetValue("Database:ApplicationName", "Cookie Clicker"),
-                Database = configuration.GetValue("Database:DatabaseName", "cookie_clicker"),
-                Host = configuration.GetValue("Database:Host", "localhost"),
-                Username = configuration.GetValue("Database:Username", "cookie_clicker"),
-                Port = configuration.GetValue("Database:Port", 5432),
-                Password = configuration.GetValue<string>("Database:Password")
-            };
+            ApplicationName = configuration.GetValue("Database:ApplicationName", "Cookie Clicker"),
+            Database = configuration.GetValue("Database:DatabaseName", "cookie_clicker"),
+            Host = configuration.GetValue("Database:Host", "localhost"),
+            Username = configuration.GetValue("Database:Username", "cookie_clicker"),
+            Port = configuration.GetValue("Database:Port", 5432),
+            Password = configuration.GetValue<string>("Database:Password")
+        };
 
-            optionsBuilder.UseNpgsql(connectionBuilder.ToString(), options => options.EnableRetryOnFailure(5).CommandTimeout(5))
-                .UseSnakeCaseNamingConvention()
-                .EnableThreadSafetyChecks(false);
-        }
+        internal static void ConfigureOptions(DbContextOptionsBuilder optionsBuilder, IConfiguration configuration) => optionsBuilder.UseNpgsql(GetConnectionString(configuration).ToString(), options => options.EnableRetryOnFailure(5).CommandTimeout(5))
+            .UseSnakeCaseNamingConvention()
+            .EnableThreadSafetyChecks(false);
     }
 }
