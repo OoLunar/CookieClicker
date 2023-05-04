@@ -19,6 +19,8 @@
     },
     "logging": {
         "level": "Debug",
+        "filename": "yyyy'-'MM'-'dd' 'HH'.'mm'.'ss",
+        "format": "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz}] [{Level:u4}] {SourceContext}: {Message:lj}{NewLine}{Exception}",
         "overrides": {
             "Microsoft.EntityFrameworkCore": "Warning"
         }
