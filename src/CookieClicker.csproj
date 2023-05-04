@@ -21,7 +21,7 @@
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
     <RepositoryType>Git</RepositoryType>
     <RepositoryUrl>https://github.com/OoLunar/CookieClicker</RepositoryUrl>
-    <Version>0.2.3</Version>
+    <Version>0.2.4</Version>
   </PropertyGroup>
   <ItemGroup>
     <None Include="../res/config.json" CopyToOutputDirectory="Always" />
