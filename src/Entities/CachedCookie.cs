@@ -19,7 +19,7 @@ namespace OoLunar.CookieClicker.Entities
 
         public ulong Bake()
         {
-            ulong value = Interlocked.Increment(ref Cookie._clicks);
+            ulong value = Interlocked.Increment(ref Cookie.Clicks);
             LastModified = DateTime.UtcNow;
             return value;
         }

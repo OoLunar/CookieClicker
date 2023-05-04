@@ -33,7 +33,6 @@ namespace OoLunar.CookieClicker.Database
             entity.Property(cookie => cookie.Id)
                 .HasConversion(id => id.ToGuid(), id => new Ulid(id))
                 .ValueGeneratedOnAdd();
-            entity.Property(cookie => cookie._clicks).HasField("_clicks").HasColumnName("clicks");
         });
 
         internal static void ConfigureOptions(DbContextOptionsBuilder optionsBuilder, IConfiguration configuration)

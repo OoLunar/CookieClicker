@@ -126,7 +126,7 @@ namespace OoLunar.CookieClicker
                     .Authentication(ApiKeyAuthentication.Create()
                         .WithHeader("Host")
                         .Authenticator(discordHeaderAuthentication.Authenticate))
-                    .Post(interactionHandler.HandleAsync);
+                    .Post(interactionHandler.Handle);
 
                 return Host.Create()
                     .Handler(Layout.Create()

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
-using System.Threading.Tasks;
 using GenHTTP.Api.Content;
 using GenHTTP.Api.Protocol;
 using OoLunar.CookieClicker.Entities.Discord.Components;
@@ -24,7 +23,7 @@ namespace OoLunar.CookieClicker.Routes
             _slashCommandHandler = slashCommandHandler;
         }
 
-        public async Task<DiscordInteractionResponse?> HandleAsync(IRequest request)
+        public DiscordInteractionResponse? Handle(IRequest request)
         {
             if (request.Content is null)
             {
@@ -32,17 +31,17 @@ namespace OoLunar.CookieClicker.Routes
             }
 
             request.Content.Seek(0, SeekOrigin.Begin);
-            DiscordInteraction interaction = await JsonSerializer.DeserializeAsync<DiscordInteraction>(request.Content) ?? throw new ProviderException(ResponseStatus.BadRequest, "Invalid interaction");
+            DiscordInteraction interaction = JsonSerializer.Deserialize<DiscordInteraction>(request.Content) ?? throw new ProviderException(ResponseStatus.BadRequest, "Invalid interaction");
             return interaction.Type switch
             {
                 DiscordInteractionType.Ping => new DiscordInteractionResponse() { Type = DiscordInteractionResponseType.Pong },
-                DiscordInteractionType.ApplicationCommand => await CreateCookieAsync(interaction),
-                DiscordInteractionType.MessageComponent => await ClickCookieAsync(interaction),
+                DiscordInteractionType.ApplicationCommand => CreateCookie(interaction),
+                DiscordInteractionType.MessageComponent => ClickCookie(interaction),
                 _ => throw new ProviderException(ResponseStatus.BadRequest, $"Unknown interaction type: {interaction.Type}")
             };
         }
 
-        private Task<DiscordInteractionResponse?> CreateCookieAsync(DiscordInteraction interaction)
+        private DiscordInteractionResponse? CreateCookie(DiscordInteraction interaction)
         {
             DiscordInteractionApplicationCommandDataStructure? data = interaction.Data.Deserialize<DiscordInteractionApplicationCommandDataStructure>();
             if (data is null)
@@ -56,7 +55,7 @@ namespace OoLunar.CookieClicker.Routes
 
             Entities.Cookie cookie = new();
             _cookieTracker.CreateCookie(cookie);
-            return Task.FromResult<DiscordInteractionResponse?>(new DiscordInteractionResponse()
+            return new DiscordInteractionResponse()
             {
                 Type = DiscordInteractionResponseType.ChannelMessageWithSource,
                 Data = new DiscordInteractionCallbackData()
@@ -74,24 +73,17 @@ namespace OoLunar.CookieClicker.Routes
                         }
                     }
                 }
-            });
+            };
         }
 
-        private async Task<DiscordInteractionResponse?> ClickCookieAsync(DiscordInteraction interaction)
-        {
-            DiscordInteractionMessageComponentDataStructure data = interaction.Data.Deserialize<DiscordInteractionMessageComponentDataStructure>()!;
-            if (!Ulid.TryParse(data.CustomId, out Ulid cookieId))
-            {
-                throw new ProviderException(ResponseStatus.BadRequest, $"Invalid cookie id: {data.CustomId}");
-            }
-
-            ulong count = await _cookieTracker.ClickAsync(cookieId);
-            return new DiscordInteractionResponse()
+        private DiscordInteractionResponse? ClickCookie(DiscordInteraction interaction) => !Ulid.TryParse(interaction.Data.GetProperty("custom_id").GetString() ?? throw new ProviderException(ResponseStatus.BadRequest, "Invalid interaction data"), out Ulid cookieId)
+            ? throw new ProviderException(ResponseStatus.BadRequest, $"Invalid cookie id: {interaction.Data.GetProperty("custom_id").GetString()}")
+            : new DiscordInteractionResponse()
             {
                 Type = DiscordInteractionResponseType.UpdateMessage,
                 Data = new DiscordInteractionCallbackData()
                 {
-                    Content = $"The cookie has been clicked {count:N0} times!",
+                    Content = $"The cookie has been clicked {_cookieTracker.Click(cookieId):N0} times!",
                     Components = new List<DiscordActionRowComponent>() {
                         new DiscordActionRowComponent()
                         {
@@ -106,6 +98,5 @@ namespace OoLunar.CookieClicker.Routes
                     }
                 }
             };
-        }
     }
 }

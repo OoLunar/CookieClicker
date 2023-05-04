@@ -23,10 +23,8 @@
     <RepositoryUrl>https://github.com/OoLunar/CookieClicker</RepositoryUrl>
     <Version>0.2.0</Version>
   </PropertyGroup>
-  <Target Name="CopyConfigFile" AfterTargets="AfterBuild">
-    <Copy SourceFiles="../res/config.json" DestinationFolder="$(OutDir)" />
-  </Target>
   <ItemGroup>
+    <None Include="../res/config.json" CopyToOutputDirectory="Always" />
     <EmbeddedResource Include="../License" />
     <EmbeddedResource Include="../PrivacyPolicy.md" />
     <EmbeddedResource Include="../Readme.md" />
