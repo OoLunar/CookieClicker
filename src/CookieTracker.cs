@@ -37,6 +37,7 @@ namespace OoLunar.CookieClicker
 
             DatabaseContext = databaseContext;
             NpgsqlConnection connection = (NpgsqlConnection)DatabaseContext.Database.GetDbConnection();
+            connection.Open();
             DatabaseCommands = new Dictionary<DatabaseOperation, NpgsqlCommand>
             {
                 [DatabaseOperation.Create] = GetInsertCommand(connection),
@@ -91,7 +92,6 @@ namespace OoLunar.CookieClicker
         {
             DbCommand createCommand = DatabaseCommands[DatabaseOperation.Create];
             DbCommand updateCommand = DatabaseCommands[DatabaseOperation.Update];
-            await updateCommand.Connection!.OpenAsync();
             foreach (DbCommand command in DatabaseCommands.Values)
             {
                 await command.PrepareAsync();
