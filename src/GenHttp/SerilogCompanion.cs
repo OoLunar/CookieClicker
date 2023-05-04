@@ -13,7 +13,7 @@ namespace OoLunar.CookieClicker.GenHttp
         public void OnServerError(ServerErrorScope scope, Exception error) => _logger.LogError(error, "A {Scope} error has occured:", scope);
         public void OnRequestHandled(IRequest request, IResponse response)
         {
-            if (response.Status.RawStatus is >= 200 and < 300)
+            if (response.Status.RawStatus is < 400)
             {
                 _logger.LogDebug("Handled {Method} request to {Path} with status {Status} {Response}", request.Method.RawMethod, request.Target.Path, response.Status.RawStatus, response.Status.Phrase);
             }

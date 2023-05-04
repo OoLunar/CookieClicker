@@ -3,12 +3,18 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Net;
 using System.Threading.Tasks;
+using GenHTTP.Api.Content.Templating;
 using GenHTTP.Api.Infrastructure;
 using GenHTTP.Engine;
 using GenHTTP.Modules.Authentication;
+using GenHTTP.Modules.DirectoryBrowsing;
 using GenHTTP.Modules.ErrorHandling;
 using GenHTTP.Modules.Functional;
-using GenHTTP.Modules.Practices;
+using GenHTTP.Modules.Functional.Provider;
+using GenHTTP.Modules.IO;
+using GenHTTP.Modules.Layouting;
+using GenHTTP.Modules.Layouting.Provider;
+using GenHTTP.Modules.Markdown;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -95,18 +101,39 @@ namespace OoLunar.CookieClicker
                 JsonErrorMapper jsonErrorMapper = serviceProvider.GetRequiredService<JsonErrorMapper>();
                 SerilogCompanion serilogCompanion = serviceProvider.GetRequiredService<SerilogCompanion>();
 
+                MarkdownPageProviderBuilder<IModel> readme = ModMarkdown
+                        .Page(Resource.FromAssembly(typeof(Program).Assembly, "Readme.md"))
+                        .Title("Readme - Cookie Clicker")
+                        .Description("Are you tired of having no purpose in life? Do you crave the sweet satisfaction of watching a number increase every time you click? Look no further, because the cookie clicker bot is here to fill that void in your soul.");
+
+                LayoutBuilder textFiles = Layout.Create()
+                    .Add("readme", readme)
+                    .Add("license", ModMarkdown.Page(Resource.FromAssembly(typeof(Program).Assembly, "License"))
+                        .Title("License - Cookie Clicker")
+                        .Description("The LGPL 3 is a permissive open-source license that allows the use and modification of software, while requiring any changes made to the original code to be released under the same LGPL 3 license. The license also allows for the linking of the licensed code with proprietary software under certain conditions."))
+                    .Add("privacy", ModMarkdown.Page(Resource.FromAssembly(typeof(Program).Assembly, "PrivacyPolicy.md"))
+                        .Title("Privacy - Cookie Clicker")
+                        .Description("Privacy Policy for the Cookie Clicker Discord bot: Your data is only collected for the purpose of providing services and is securely stored. We won't share your data with third parties, except as required by law or legal process, or to protect the rights, property, or safety of the Bot, its users, or others."))
+                    .Add("terms", ModMarkdown.Page(Resource.FromAssembly(typeof(Program).Assembly, "TermsOfService.md"))
+                        .Title("Terms of Service - Cookie Clicker")
+                        .Description("Cookie Clicker Discord bot's Terms of Service outline prohibited conduct, user responsibility, disclaimer of warranty and liability, indemnification, termination, and changes to the terms and conditions. By using the bot, you agree to these terms.")
+                    )
+                    .Add("favicon.ico", Download.From(Resource.FromAssembly(typeof(Program).Assembly, "res.favicon.ico")))
+                    .Add("res", Listing.From(ResourceTree.FromAssembly(typeof(Program).Assembly, "res")))
+                    .Index(readme);
+
+                InlineBuilder inlineBuilder = Inline.Create()
+                    .Authentication(ApiKeyAuthentication.Create()
+                        .WithHeader("Host")
+                        .Authenticator(discordHeaderAuthentication.Authenticate))
+                    .Post(interactionHandler.HandleAsync);
+
                 return Host.Create()
-                    .Defaults()
-                    .Companion(serilogCompanion)
-                    .Handler(Inline.Create()
-                        .Authentication(ApiKeyAuthentication.Create()
-                            .WithHeader("X-Signature-Ed25519")
-                            .Authenticator(discordHeaderAuthentication.Authenticate))
-                        .Add(ErrorHandler.From(jsonErrorMapper))
-                        .Post(configuration.GetValue("Server:BasePath", "/")!, interactionHandler.HandleAsync))
-                    .Bind(IPAddress.Parse(configuration.GetValue("Server:Address", "127.0.0.1")!), configuration.GetValue<ushort>("Server:Port", 8080))
-                    .RequestReadTimeout(TimeSpan.FromSeconds(configuration.GetValue("Server:RequestReadTimeout", 30)))
-                    .RequestMemoryLimit(configuration.GetValue<uint>("Server:RequestMemoryLimit", 1024 * 1024 * 10));
+                    .Handler(Layout.Create()
+                        .Add(textFiles)
+                        .Add(configuration.GetValue("Server:BasePath", "api")!.TrimStart('/'), inlineBuilder)
+                        .Add(ErrorHandler.From(jsonErrorMapper)))
+                    .Bind(IPAddress.Parse(configuration.GetValue("Server:Address", "127.0.0.1")!), configuration.GetValue<ushort>("Server:Port", 8080));
             });
 
             IServiceProvider serviceProvider = serviceCollection.BuildServiceProvider();
