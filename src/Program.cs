@@ -129,13 +129,16 @@ namespace OoLunar.CookieClicker
                         .Authenticator(discordHeaderAuthentication.Authenticate))
                     .Post(interactionHandler.Handle);
 
+                LayoutBuilder root = Layout.Create()
+                    .Add(textFiles)
+                    .Add("api", inlineBuilder)
+                    .Add(ErrorHandler.From(jsonErrorMapper));
+
+                string? basePath = configuration.GetValue<string>("Server:BasePath");
                 return Host.Create()
                     .Defaults()
                     .Companion(serilogCompanion)
-                    .Handler(Layout.Create()
-                        .Add(textFiles)
-                        .Add(configuration.GetValue("Server:BasePath", "api")!.TrimStart('/'), inlineBuilder)
-                        .Add(ErrorHandler.From(jsonErrorMapper)))
+                    .Handler(string.IsNullOrWhiteSpace(basePath) ? Layout.Create().Add(root) : Layout.Create().Add(basePath!, root))
                     .Bind(IPAddress.Parse(configuration.GetValue("Server:Address", "127.0.0.1")!), configuration.GetValue<ushort>("Server:Port", 8080))
                     .RequestReadTimeout(TimeSpan.FromSeconds(configuration.GetValue("Server:RequestReadTimeout", 30)))
                     .RequestMemoryLimit(configuration.GetValue<uint>("Server:RequestMemoryLimit", 1024 * 1024 * 10));
