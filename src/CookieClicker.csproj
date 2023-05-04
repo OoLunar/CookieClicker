@@ -52,8 +52,6 @@
     <ProjectReference Include="../libs/GenHTTP/Modules/Basics/GenHTTP.Modules.Basics.csproj" />
     <ProjectReference Include="../libs/GenHTTP/Modules/Functional/GenHTTP.Modules.Functional.csproj" />
     <ProjectReference Include="../libs/GenHTTP/Modules/Practices/GenHTTP.Modules.Practices.csproj" />
-    <ProjectReference Include="../libs/GenHTTP/Modules/Websites/GenHTTP.Modules.Websites.csproj" />
-    <ProjectReference Include="../libs/GenHTTP/Modules/StaticWebsites/GenHTTP.Modules.StaticWebsites.csproj" />
     <ProjectReference Include="../libs/GenHTTP/Modules/Markdown/GenHTTP.Modules.Markdown.csproj" />
     <ProjectReference Include="../libs/GenHTTP/Modules/DirectoryBrowsing/GenHTTP.Modules.DirectoryBrowsing.csproj" />
   </ItemGroup>
