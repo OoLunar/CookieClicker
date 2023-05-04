@@ -21,11 +21,11 @@ namespace OoLunar.CookieClicker.GenHttp
                 case ProviderException providerException:
                     if (providerException.Status != ResponseStatus.Forbidden)
                     {
-                        _logger.LogError(error, "An unhandled exception occured while handling a {Method} request to {Path}:", request.Method.RawMethod, request.Target.Path);
+                        HttpLogger.HttpHandleInternalError(_logger, request.Method.RawMethod, request.Target.Path, (int)providerException.Status, providerException.Message, error);
                     }
                     return new(GetResponse(request, providerException.Status, new(providerException.Message)));
                 default:
-                    _logger.LogError(error, "An unhandled exception occured while handling a {Method} request to {Path}:", request.Method.RawMethod, request.Target.Path);
+                    HttpLogger.HttpHandleInternalError(_logger, request.Method.RawMethod, request.Target.Path, (int)ResponseStatus.InternalServerError, error.Message, error);
                     return new(GetResponse(request, ResponseStatus.InternalServerError, new(error.Message)));
             }
         }

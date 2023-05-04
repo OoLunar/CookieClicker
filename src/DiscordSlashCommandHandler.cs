@@ -37,20 +37,19 @@ namespace OoLunar.CookieClicker
 
         public async Task RegisterAsync()
         {
-            _logger.LogDebug("Registering slash commands...");
             HttpRequestMessage request = new(HttpMethod.Put, $"https://discord.com/api/v10/applications/{_applicationId}/commands") { Content = new StringContent("""[{"name":"create-cookie","description":"Creates a cookie in the current channel.","type":1,"default_member_permissions":"8192","dm_permission":true}]""", MediaTypeHeaderValue.Parse("application/json")) };
             request.Headers.Add("Authorization", $"Bot {_token}");
 
             HttpResponseMessage response = await _httpClient.SendAsync(request);
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError("Failed to register slash commands: {StatusCode} {ReasonPhrase}", response.StatusCode, await response.Content.ReadAsStringAsync());
+                HttpLogger.RegisterSlashCommandsFailed(_logger, (int)response.StatusCode, await response.Content.ReadAsStringAsync(), null);
                 return;
             }
 
             JsonDocument slashCommand = await response.Content.ReadFromJsonAsync<JsonDocument>() ?? throw new InvalidOperationException("Failed to parse slash command response.");
             CreateCookieCommandId = slashCommand.RootElement[0].GetProperty("id").GetString() ?? throw new InvalidOperationException("Missing 'id' property.");
-            _logger.LogInformation("Slash commands registered.");
+            HttpLogger.RegisterSlashCommands(_logger, null);
         }
 
         public void Dispose() => ((IDisposable)_httpClient).Dispose();

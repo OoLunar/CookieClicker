@@ -20,7 +20,7 @@ namespace OoLunar.CookieClicker
     {
         private readonly Dictionary<Ulid, CachedCookie> UnbakedCookies = new();
         private readonly CookieDatabaseContext DatabaseContext;
-        private readonly ILogger<CookieTracker> Logger;
+        private readonly ILogger<CookieTracker> _logger;
         private readonly SemaphoreSlim Semaphore = new(1, 1);
         private readonly PeriodicTimer Timer;
         private readonly Task BakingTask;
@@ -32,7 +32,7 @@ namespace OoLunar.CookieClicker
             ArgumentNullException.ThrowIfNull(configuration, nameof(configuration));
             ArgumentNullException.ThrowIfNull(logger, nameof(logger));
 
-            Logger = logger;
+            _logger = logger;
             Timer = new PeriodicTimer(TimeSpan.FromSeconds(configuration.GetValue("CookieTracker:Period", 30)));
 
             DatabaseContext = databaseContext;
@@ -146,18 +146,18 @@ namespace OoLunar.CookieClicker
                 await Semaphore.WaitAsync();
                 try
                 {
-                    if (updatedCookieIds.Count != 0)
-                    {
-                        updateCommand.Parameters[0].Value = updatedCookieIds;
-                        updateCommand.Parameters[1].Value = updatedCookieCount;
-                        Logger.LogDebug("Updated {Count:N0} cookies!", await updateCommand.ExecuteNonQueryAsync());
-                    }
-
                     if (newCookieIds.Count != 0)
                     {
                         createCommand.Parameters[0].Value = newCookieIds;
                         createCommand.Parameters[1].Value = newCookieCount;
-                        Logger.LogDebug("Created {Count:N0} new cookies!", await createCommand.ExecuteNonQueryAsync());
+                        HttpLogger.CookieCreated(_logger, await createCommand.ExecuteNonQueryAsync(), null);
+                    }
+
+                    if (updatedCookieIds.Count != 0)
+                    {
+                        updateCommand.Parameters[0].Value = updatedCookieIds;
+                        updateCommand.Parameters[1].Value = updatedCookieCount;
+                        HttpLogger.CookieUpdated(_logger, await updateCommand.ExecuteNonQueryAsync(), null);
                     }
                 }
                 finally

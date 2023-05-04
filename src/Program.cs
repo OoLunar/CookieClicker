@@ -97,7 +97,7 @@ namespace OoLunar.CookieClicker
 
             IServiceProvider serviceProvider = serviceCollection.BuildServiceProvider();
             await serviceProvider.GetRequiredService<DiscordSlashCommandHandler>().RegisterAsync();
-            serviceProvider.GetRequiredService<ILogger<Program>>().LogInformation("Server started.");
+            HttpLogger.ServerStart(serviceProvider.GetRequiredService<ILogger<Program>>(), configuration.GetValue("Server:Address", "127.0.0.1")!, configuration.GetValue<ushort>("Server:Port", 8080), null);
             return serviceProvider.GetRequiredService<IServerHost>().Run();
         }
     }

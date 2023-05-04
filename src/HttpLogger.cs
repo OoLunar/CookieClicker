@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using GenHTTP.Api.Infrastructure;
 using GenHTTP.Api.Protocol;
+using GenHTTP.Api.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Serilog;
@@ -13,23 +14,35 @@ namespace OoLunar.CookieClicker
 {
     public sealed class HttpLogger : IServerCompanion
     {
+        internal static readonly Action<Microsoft.Extensions.Logging.ILogger, string, ushort, Exception?> ServerStart = LoggerMessage.Define<string, ushort>(LogLevel.Information, new EventId(0, "Server Setup"), "Server started on {Address}:{Port}");
+        internal static readonly Action<Microsoft.Extensions.Logging.ILogger, string, WebPath, int, string, Exception?> HttpHandleSuccess = LoggerMessage.Define<string, WebPath, int, string>(LogLevel.Debug, new EventId(1, "Http Request Handled"), "Handled {Method} request to {Path} with status {Status} {Response}");
+        internal static readonly Action<Microsoft.Extensions.Logging.ILogger, string, WebPath, int, string, Exception?> HttpHandleBadClient = LoggerMessage.Define<string, WebPath, int, string>(LogLevel.Information, new EventId(1, "Http Request Handled"), "Handled {Method} request to {Path} with status {Status} {Response}");
+        internal static readonly Action<Microsoft.Extensions.Logging.ILogger, string, WebPath, int, string, Exception?> HttpHandleInternalError = LoggerMessage.Define<string, WebPath, int, string>(LogLevel.Error, new EventId(1, "Http Request Handled"), "Handled {Method} request to {Path} with status {Status} {Response}");
+        internal static readonly Action<Microsoft.Extensions.Logging.ILogger, Exception?> RegisterSlashCommands = LoggerMessage.Define(LogLevel.Information, new EventId(2, "SlashCommands registered"), "Registered slash commands.");
+        internal static readonly Action<Microsoft.Extensions.Logging.ILogger, int, string, Exception?> RegisterSlashCommandsFailed = LoggerMessage.Define<int, string>(LogLevel.Error, new EventId(2, "SlashCommands failed to register"), "Failed to register slash commands: {HttpStatusCode} {ReasonPhrase}");
+        internal static readonly Action<Microsoft.Extensions.Logging.ILogger, int, Exception?> CookieCreated = LoggerMessage.Define<int>(LogLevel.Debug, new EventId(3, "Cookie Database Operation"), "Created {Count:N0} cookies!");
+        internal static readonly Action<Microsoft.Extensions.Logging.ILogger, int, Exception?> CookieUpdated = LoggerMessage.Define<int>(LogLevel.Debug, new EventId(3, "Cookie Database Operation"), "Updated {Count:N0} cookies!");
+
         private readonly ILogger<HttpLogger> _logger;
 
         public HttpLogger(ILogger<HttpLogger> logger) => _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         public void OnServerError(ServerErrorScope scope, Exception error) => _logger.LogError(error, "A {Scope} error has occured:", scope);
         public void OnRequestHandled(IRequest request, IResponse response)
         {
-            if (response.Status.RawStatus is < 400)
+            switch (response.Status.RawStatus)
             {
-                _logger.LogDebug("Handled {Method} request to {Path} with status {Status} {Response}", request.Method.RawMethod, request.Target.Path, response.Status.RawStatus, response.Status.Phrase);
-            }
-            else if (response.Status.RawStatus is >= 500 and < 600)
-            {
-                _logger.LogError("Handled {Method} request to {Path} with status {Status} {Response}", request.Method.RawMethod, request.Target.Path, response.Status.RawStatus, response.Status.Phrase);
-            }
-            else
-            {
-                _logger.LogInformation("Handled {Method} request to {Path} with status {Status} {Response}", request.Method.RawMethod, request.Target.Path, response.Status.RawStatus, response.Status.Phrase);
+                case < 400:
+                    HttpHandleSuccess(_logger, request.Method.RawMethod, request.Target.Path, response.Status.RawStatus, response.Status.Phrase, null);
+                    break;
+                case >= 400 and < 500:
+                    HttpHandleBadClient(_logger, request.Method.RawMethod, request.Target.Path, response.Status.RawStatus, response.Status.Phrase, null);
+                    break;
+                case >= 500 and < 600:
+                    // Json error mapper will handle this with more information available.
+                    break;
+                default:
+                    HttpHandleInternalError(_logger, request.Method.RawMethod, request.Target.Path, response.Status.RawStatus, response.Status.Phrase, null);
+                    break;
             }
         }
 
