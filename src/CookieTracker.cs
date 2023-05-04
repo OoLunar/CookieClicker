@@ -104,9 +104,9 @@ namespace OoLunar.CookieClicker
                 Semaphore.Release();
 
                 List<Guid> updatedCookieIds = new();
-                List<ulong> updatedCookieCount = new();
+                List<decimal> updatedCookieCount = new();
                 List<Guid> newCookieIds = new();
-                List<ulong> newCookieCount = new();
+                List<decimal> newCookieCount = new();
 
                 // Iterate over a copy of the unbaked cookies dictionary to avoid collection modified exceptions.
                 // This foreach loop is used to update the cookies in the database and remove them from cache.
@@ -138,7 +138,7 @@ namespace OoLunar.CookieClicker
                     }
                 }
 
-                if (updatedCookieIds.Count == 0 || newCookieIds.Count == 0)
+                if (updatedCookieIds.Count == 0 && newCookieIds.Count == 0)
                 {
                     continue;
                 }
