@@ -16,10 +16,18 @@ namespace OoLunar.CookieClicker.GenHttp
         public ValueTask<IResponse?> GetNotFound(IRequest request, IHandler handler) => new(GetResponse(request, ResponseStatus.NotFound, new("Not found")));
         public ValueTask<IResponse?> Map(IRequest request, IHandler handler, Exception error)
         {
-            _logger.LogError(error, "An unhandled exception occured while handling a {Method} request to {Path}:", request.Method.RawMethod, request.Target.Path);
-            return error is ProviderException providerException
-                ? new(GetResponse(request, providerException.Status, new(error.Message)))
-                : new(GetResponse(request, ResponseStatus.InternalServerError, new(error.Message)));
+            switch (error)
+            {
+                case ProviderException providerException:
+                    if (providerException.Status != ResponseStatus.Forbidden)
+                    {
+                        _logger.LogError(error, "An unhandled exception occured while handling a {Method} request to {Path}:", request.Method.RawMethod, request.Target.Path);
+                    }
+                    return new(GetResponse(request, providerException.Status, new(providerException.Message)));
+                default:
+                    _logger.LogError(error, "An unhandled exception occured while handling a {Method} request to {Path}:", request.Method.RawMethod, request.Target.Path);
+                    return new(GetResponse(request, ResponseStatus.InternalServerError, new(error.Message)));
+            }
         }
 
         private static IResponse GetResponse(IRequest request, ResponseStatus status, HttpError error) => request.Respond()

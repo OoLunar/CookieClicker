@@ -15,6 +15,7 @@ using GenHTTP.Modules.IO;
 using GenHTTP.Modules.Layouting;
 using GenHTTP.Modules.Layouting.Provider;
 using GenHTTP.Modules.Markdown;
+using GenHTTP.Modules.Practices;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -129,11 +130,15 @@ namespace OoLunar.CookieClicker
                     .Post(interactionHandler.Handle);
 
                 return Host.Create()
+                    .Defaults()
+                    .Companion(serilogCompanion)
                     .Handler(Layout.Create()
                         .Add(textFiles)
                         .Add(configuration.GetValue("Server:BasePath", "api")!.TrimStart('/'), inlineBuilder)
                         .Add(ErrorHandler.From(jsonErrorMapper)))
-                    .Bind(IPAddress.Parse(configuration.GetValue("Server:Address", "127.0.0.1")!), configuration.GetValue<ushort>("Server:Port", 8080));
+                    .Bind(IPAddress.Parse(configuration.GetValue("Server:Address", "127.0.0.1")!), configuration.GetValue<ushort>("Server:Port", 8080))
+                    .RequestReadTimeout(TimeSpan.FromSeconds(configuration.GetValue("Server:RequestReadTimeout", 30)))
+                    .RequestMemoryLimit(configuration.GetValue<uint>("Server:RequestMemoryLimit", 1024 * 1024 * 10));
             });
 
             IServiceProvider serviceProvider = serviceCollection.BuildServiceProvider();
