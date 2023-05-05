@@ -28,11 +28,11 @@ regenerate "res/debug/icon.svg"
 regenerate "res/release/icon.svg"
 
 # Check if any files were modified
+git config --global user.email "github-actions[bot]@users.noreply.github.com"
+git config --global user.name "github-actions[bot]"
+git add res > /dev/null
 git diff-index --quiet HEAD
 if [ "$?" == "1" ]; then
-  git config --global user.email "github-actions[bot]@users.noreply.github.com"
-  git config --global user.name "github-actions[bot]"
-  git add res > /dev/null
   git commit -m "[ci-skip] Regenerate icon files." > /dev/null
   git push > /dev/null
 else
