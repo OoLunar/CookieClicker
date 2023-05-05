@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 
 # Deps
 xbps-install -Sy ImageMagick > /dev/null
