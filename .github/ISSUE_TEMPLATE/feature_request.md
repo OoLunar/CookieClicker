@@ -1,7 +1,7 @@
 ---
 name: Feature request
 about: Should the bot have something else?
-title: ''
+title: 'Feature Request: '
 labels: enhancement, help wanted
 assignees: ''
 

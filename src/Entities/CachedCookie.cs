@@ -7,8 +7,8 @@ namespace OoLunar.CookieClicker.Entities
     {
         public Cookie Cookie { get; init; }
         public DateTime LastModified { get; private set; }
-        public bool IsSaved { get; init; }
-        public bool CanSave => DateTime.UtcNow - LastModified > TimeSpan.FromSeconds(5);
+        public bool IsSaved { get; internal set; }
+        public bool Expired => DateTime.UtcNow - LastModified > TimeSpan.FromSeconds(5);
 
         public CachedCookie(Cookie cookie, bool saved)
         {
@@ -17,7 +17,7 @@ namespace OoLunar.CookieClicker.Entities
             IsSaved = saved;
         }
 
-        public ulong Bake()
+        public ulong Click()
         {
             ulong value = Interlocked.Increment(ref Cookie.Clicks);
             LastModified = DateTime.UtcNow;

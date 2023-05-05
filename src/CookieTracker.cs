@@ -17,7 +17,7 @@ namespace OoLunar.CookieClicker
 {
     public sealed class CookieTracker : IAsyncDisposable
     {
-        private readonly Dictionary<Ulid, CachedCookie> _unbakedCookies = new();
+        private readonly Dictionary<Ulid, CachedCookie> _cachedCookies = new();
         private readonly NpgsqlConnection _databaseConnection;
         private readonly ILogger<CookieTracker> _logger;
         private readonly SemaphoreSlim _semaphore = new(1, 1);
@@ -49,13 +49,13 @@ namespace OoLunar.CookieClicker
         public void CreateCookie(Cookie cookie)
         {
             ArgumentNullException.ThrowIfNull(cookie, nameof(cookie));
-            _unbakedCookies.Add(cookie.Id, new(cookie, false));
+            _cachedCookies.Add(cookie.Id, new(cookie, false));
         }
 
         public ulong Click(Ulid cookieId)
         {
             // Check if the cookie is in the cache. If it isn't, pull it from the database.
-            if (!_unbakedCookies.TryGetValue(cookieId, out CachedCookie? unbakedCookie))
+            if (!_cachedCookies.TryGetValue(cookieId, out CachedCookie? cachedCookie))
             {
                 _semaphore.Wait();
                 try
@@ -68,12 +68,12 @@ namespace OoLunar.CookieClicker
                         throw new ArgumentException($"No cookie with ID {cookieId} exists.", nameof(cookieId));
                     }
 
-                    unbakedCookie = new(new Cookie()
+                    cachedCookie = new(new Cookie()
                     {
                         Id = new Ulid(reader.GetFieldValue<Guid>(0)),
                         Clicks = (ulong)reader.GetFieldValue<decimal>(1)
                     }, true);
-                    _unbakedCookies.Add(cookieId, unbakedCookie);
+                    _cachedCookies.Add(cookieId, cachedCookie);
                 }
                 finally
                 {
@@ -82,7 +82,7 @@ namespace OoLunar.CookieClicker
             }
 
             // This method atomically increments the cookie's click count and returns the new value, while also resetting the cookie's timeout.
-            return unbakedCookie.Bake();
+            return cachedCookie.Click();
         }
 
         private async Task StartBakingAsync()
@@ -93,8 +93,13 @@ namespace OoLunar.CookieClicker
 
             while (await _timer.WaitForNextTickAsync())
             {
+                if (_cachedCookies.Count == 0)
+                {
+                    continue;
+                }
+
                 await _semaphore.WaitAsync();
-                CachedCookie[] unbakedCookies = _unbakedCookies.Values.ToArray();
+                CachedCookie[] cachedCookies = _cachedCookies.Values.ToArray();
                 _semaphore.Release();
 
                 List<Guid> updatedCookieIds = new();
@@ -104,37 +109,27 @@ namespace OoLunar.CookieClicker
 
                 // Iterate over a copy of the unbaked cookies dictionary to avoid collection modified exceptions.
                 // This foreach loop is used to update the cookies in the database and remove them from cache.
-                foreach (CachedCookie cookie in unbakedCookies)
+                foreach (CachedCookie cookie in cachedCookies)
                 {
-                    // Check if the cookie can be saved.
-                    // By default there's a 5 second timeout after the cookie has been clicked before it's written to the database.
-                    if (!cookie.CanSave)
+                    // If the cookie hasn't been interacted with in the last 5 seconds then remove it from the cache.
+                    CachedCookie? cachedCookie = cookie;
+                    if (cookie.Expired && !_cachedCookies.Remove(cookie.Cookie.Id, out cachedCookie))
                     {
-                        continue;
-                    }
-
-                    // Remove the cookie from the unbaked cookies dictionary. Prefer the returned result over the current result.
-                    if (!_unbakedCookies.Remove(cookie.Cookie.Id, out CachedCookie? unbakedCookie))
-                    {
-                        unbakedCookie = cookie;
+                        cachedCookie = cookie;
                     }
 
                     // Check if the cookie has been saved before.
-                    if (unbakedCookie.IsSaved)
+                    if (cachedCookie.IsSaved)
                     {
-                        updatedCookieIds.Add(unbakedCookie.Cookie.Id.ToGuid());
-                        updatedCookieCount.Add(unbakedCookie.Cookie.Clicks);
+                        updatedCookieIds.Add(cachedCookie.Cookie.Id.ToGuid());
+                        updatedCookieCount.Add(cachedCookie.Cookie.Clicks);
                     }
                     else
                     {
-                        newCookieIds.Add(unbakedCookie.Cookie.Id.ToGuid());
-                        newCookieCount.Add(unbakedCookie.Cookie.Clicks);
+                        cachedCookie.IsSaved = true;
+                        newCookieIds.Add(cachedCookie.Cookie.Id.ToGuid());
+                        newCookieCount.Add(cachedCookie.Cookie.Clicks);
                     }
-                }
-
-                if (updatedCookieIds.Count == 0 && newCookieIds.Count == 0)
-                {
-                    continue;
                 }
 
                 await _semaphore.WaitAsync();

@@ -1,7 +1,7 @@
 ---
 name: Bug report
 about: Is the bot not functionally correctly?
-title: ''
+title: 'Bug Report: '
 labels: bug, help wanted
 assignees: ''
 
