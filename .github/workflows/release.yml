@@ -37,6 +37,7 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
+          build-args: VERSION=${{ steps.previoustag.outputs.tag }}
           tags: |
             ghcr.io/oolunar/cookieclicker:latest
             ghcr.io/oolunar/cookieclicker:${{ steps.previoustag.outputs.tag }}
