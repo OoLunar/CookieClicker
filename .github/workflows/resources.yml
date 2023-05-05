@@ -5,6 +5,7 @@ on:
     paths:
       - "res/debug/icon.svg"
       - "res/release/icon.svg"
+      - "tools/generate-assets.sh"
 
 jobs:
   build-pr:
@@ -15,6 +16,6 @@ jobs:
         uses: actions/checkout@v3
         with:
           submodules: recursive
-          fetch-depth: 2
+          fetch-depth: 0
       - name: Generate Assets
         run: tools/generate-assets.sh
