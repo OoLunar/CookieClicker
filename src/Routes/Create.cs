@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Text.Json;
 using GenHTTP.Api.Content;
 using GenHTTP.Api.Protocol;
-using OoLunar.CookieClicker.Entities.Discord.Components;
-using OoLunar.CookieClicker.Entities.Discord.Interactions;
+using Remora.Discord.API.Abstractions.Objects;
+using Remora.Discord.API.Objects;
+using Remora.Rest.Core;
 
 namespace OoLunar.CookieClicker.Routes
 {
@@ -23,80 +22,53 @@ namespace OoLunar.CookieClicker.Routes
             _slashCommandHandler = slashCommandHandler;
         }
 
-        public DiscordInteractionResponse? Handle(IRequest request)
+        public InteractionResponse? Handle(Interaction interaction) => interaction.Type switch
         {
-            if (request.Content is null)
-            {
-                throw new ProviderException(ResponseStatus.BadRequest, "Missing interaction");
-            }
+            InteractionType.Ping => new InteractionResponse(InteractionCallbackType.Pong),
+            InteractionType.ApplicationCommand => CreateCookie(interaction),
+            InteractionType.MessageComponent => ClickCookie(interaction),
+            _ => throw new ProviderException(ResponseStatus.BadRequest, $"Unknown interaction type: {interaction.Type}")
+        };
 
-            request.Content.Seek(0, SeekOrigin.Begin);
-            DiscordInteraction interaction = JsonSerializer.Deserialize<DiscordInteraction>(request.Content) ?? throw new ProviderException(ResponseStatus.BadRequest, "Invalid interaction");
-            return interaction.Type switch
-            {
-                DiscordInteractionType.Ping => new DiscordInteractionResponse() { Type = DiscordInteractionResponseType.Pong },
-                DiscordInteractionType.ApplicationCommand => CreateCookie(interaction),
-                DiscordInteractionType.MessageComponent => ClickCookie(interaction),
-                _ => throw new ProviderException(ResponseStatus.BadRequest, $"Unknown interaction type: {interaction.Type}")
-            };
-        }
-
-        private DiscordInteractionResponse? CreateCookie(DiscordInteraction interaction)
+        private InteractionResponse? CreateCookie(Interaction interaction)
         {
-            DiscordInteractionApplicationCommandDataStructure? data = interaction.Data.Deserialize<DiscordInteractionApplicationCommandDataStructure>();
-            if (data is null)
+            if (interaction.Data.Value.AsT0.ID != _slashCommandHandler.CreateCookieCommandId)
             {
-                throw new ProviderException(ResponseStatus.BadRequest, "Invalid interaction data");
-            }
-            else if (data.Id != _slashCommandHandler.CreateCookieCommandId)
-            {
-                throw new ProviderException(ResponseStatus.BadRequest, $"Unknown command id: {data.Id}");
+                throw new ProviderException(ResponseStatus.BadRequest, $"Unknown command id: {interaction.Data.Value.AsT0.ID}");
             }
 
             Entities.Cookie cookie = new();
             _cookieTracker.CreateCookie(cookie);
-            return new DiscordInteractionResponse()
-            {
-                Type = DiscordInteractionResponseType.ChannelMessageWithSource,
-                Data = new DiscordInteractionCallbackData()
-                {
-                    Components = new List<DiscordActionRowComponent>() {
-                        new DiscordActionRowComponent()
-                        {
-                            Components = new List<DiscordButtonComponent>()
-                            {
-                                new DiscordButtonComponent()
-                                {
-                                    CustomId = cookie.Id.ToString()
-                                }
-                            }
+            return new InteractionResponse(InteractionCallbackType.ChannelMessageWithSource, new Optional<OneOf.OneOf<IInteractionMessageCallbackData, IInteractionAutocompleteCallbackData, IInteractionModalCallbackData>>(new InteractionMessageCallbackData(
+                Content: $"Click the cookie to get started!",
+                Components: new List<IActionRowComponent>() {
+                    new ActionRowComponent(
+                        Components: new List<IButtonComponent>() {
+                            new ButtonComponent(
+                                CustomID: cookie.Id.ToString(),
+                                Style: ButtonComponentStyle.Primary,
+                                Label: "Click the cookie!"
+                            )
                         }
-                    }
+                    )
                 }
-            };
+            )));
         }
 
-        private DiscordInteractionResponse? ClickCookie(DiscordInteraction interaction) => !Ulid.TryParse(interaction.Data.GetProperty("custom_id").GetString() ?? throw new ProviderException(ResponseStatus.BadRequest, "Invalid interaction data"), out Ulid cookieId)
-            ? throw new ProviderException(ResponseStatus.BadRequest, $"Invalid cookie id: {interaction.Data.GetProperty("custom_id").GetString()}")
-            : new DiscordInteractionResponse()
-            {
-                Type = DiscordInteractionResponseType.UpdateMessage,
-                Data = new DiscordInteractionCallbackData()
-                {
-                    Content = $"The cookie has been clicked {_cookieTracker.Click(cookieId):N0} times!",
-                    Components = new List<DiscordActionRowComponent>() {
-                        new DiscordActionRowComponent()
-                        {
-                            Components = new List<DiscordButtonComponent>()
-                            {
-                                new DiscordButtonComponent()
-                                {
-                                    CustomId = cookieId.ToString()
-                                }
-                            }
-                        }
+        private InteractionResponse? ClickCookie(Interaction interaction) => !Ulid.TryParse(interaction.Data.Value.AsT1.CustomID ?? throw new ProviderException(ResponseStatus.BadRequest, "Invalid interaction data"), out Ulid cookieId)
+            ? throw new ProviderException(ResponseStatus.BadRequest, $"Invalid cookie id: {interaction.Data.Value.AsT1.CustomID}")
+            : new InteractionResponse(InteractionCallbackType.UpdateMessage, new Optional<OneOf.OneOf<IInteractionMessageCallbackData, IInteractionAutocompleteCallbackData, IInteractionModalCallbackData>>(new InteractionMessageCallbackData(
+                Content: $"The cookie has been clicked {_cookieTracker.Click(cookieId):N0} times!",
+                Components: new List<IActionRowComponent>() {
+                new ActionRowComponent(
+                    Components: new List<IButtonComponent>() {
+                        new ButtonComponent(
+                            CustomID: cookieId.ToString(),
+                            Style: ButtonComponentStyle.Primary,
+                            Label: "Click the cookie!"
+                        )
                     }
-                }
-            };
+                )
+            })));
     }
 }

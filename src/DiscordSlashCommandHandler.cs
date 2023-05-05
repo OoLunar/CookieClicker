@@ -7,12 +7,13 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Remora.Rest.Core;
 
 namespace OoLunar.CookieClicker
 {
     public sealed class DiscordSlashCommandHandler : IDisposable
     {
-        public string CreateCookieCommandId { get; private set; } = null!;
+        public Snowflake CreateCookieCommandId { get; private set; }
 
         private readonly string _token;
         private readonly string _applicationId;
@@ -48,7 +49,10 @@ namespace OoLunar.CookieClicker
             }
 
             JsonDocument slashCommand = await response.Content.ReadFromJsonAsync<JsonDocument>() ?? throw new InvalidOperationException("Failed to parse slash command response.");
-            CreateCookieCommandId = slashCommand.RootElement[0].GetProperty("id").GetString() ?? throw new InvalidOperationException("Missing 'id' property.");
+            string slashCommandId = slashCommand.RootElement[0].GetProperty("id").GetString() ?? throw new InvalidOperationException("Missing 'id' property.");
+            CreateCookieCommandId = Snowflake.TryParse(slashCommandId, out Snowflake? commandId)
+                ? commandId.Value
+                : throw new InvalidOperationException($"Failed to parse slash command id: {slashCommandId}");
             HttpLogger.RegisterSlashCommands(_logger, null);
         }
 
