@@ -1,0 +1,20 @@
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "res/debug/icon.svg"
+      - "res/release/icon.svg"
+
+jobs:
+  build-pr:
+    name: "Regenerate Resource Files"
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          fetch-depth: 2
+      - name: Generate Assets
+        run: tools/generate-assets.sh

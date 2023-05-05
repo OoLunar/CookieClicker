@@ -28,7 +28,8 @@
     <EmbeddedResource Include="../PrivacyPolicy.md" />
     <EmbeddedResource Include="../Readme.md" />
     <EmbeddedResource Include="../TermsOfService.md" />
-    <EmbeddedResource Include="../res/*" LinkBase="res" />
+    <EmbeddedResource Include="../res/debug/*" LinkBase="res" Condition="$(DEBUG) == true" />
+    <EmbeddedResource Include="../res/release/*" LinkBase="res" Condition="$(DEBUG) == false" />
     <PackageReference Include="EFCore.NamingConventions" Version="7.0.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="7.0.5" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" PrivateAssets="all" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="7.0.5" />
