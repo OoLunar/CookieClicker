@@ -177,6 +177,7 @@ namespace OoLunar.CookieClicker
             }
 
             _semaphore.Wait();
+reconnect:
             try
             {
                 _databaseConnection.Open();
@@ -184,10 +185,11 @@ namespace OoLunar.CookieClicker
                 {
                     command.Prepare();
                 }
-            }
-            finally
-            {
                 _semaphore.Release();
+            }
+            catch (Exception)
+            {
+                goto reconnect;
             }
         }
 
