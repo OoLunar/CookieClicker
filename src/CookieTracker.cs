@@ -34,7 +34,7 @@ namespace OoLunar.CookieClicker
             _timer = new PeriodicTimer(TimeSpan.FromSeconds(configuration.GetValue("CookieTracker:Period", 30)));
 
             _databaseConnection = NpgsqlDataSource.Create(CookieDatabaseContext.GetConnectionString(configuration)).CreateConnection();
-            _databaseConnection.Open();
+            _databaseConnection.StateChange += InitConnection;
             _databaseCommands = new Dictionary<DatabaseOperation, NpgsqlCommand>
             {
                 [DatabaseOperation.Create] = GetInsertCommand(_databaseConnection),
@@ -87,12 +87,9 @@ namespace OoLunar.CookieClicker
 
         private async Task StartBakingAsync()
         {
+            InitConnection(null, new StateChangeEventArgs(ConnectionState.Closed, ConnectionState.Closed));
             DbCommand createCommand = _databaseCommands[DatabaseOperation.Create];
             DbCommand updateCommand = _databaseCommands[DatabaseOperation.Update];
-            foreach (DbCommand command in _databaseCommands.Values)
-            {
-                await command.PrepareAsync();
-            }
 
             while (await _timer.WaitForNextTickAsync())
             {
@@ -170,6 +167,28 @@ namespace OoLunar.CookieClicker
             await _bakingTask;
             await _databaseConnection.DisposeAsync();
             _semaphore.Dispose();
+        }
+
+        private void InitConnection(object? sender, StateChangeEventArgs eventArgs)
+        {
+            if (eventArgs.CurrentState is not ConnectionState.Closed and not ConnectionState.Broken)
+            {
+                return;
+            }
+
+            _semaphore.Wait();
+            try
+            {
+                _databaseConnection.Open();
+                foreach (DbCommand command in _databaseCommands.Values)
+                {
+                    command.Prepare();
+                }
+            }
+            finally
+            {
+                _semaphore.Release();
+            }
         }
 
         private static NpgsqlCommand GetSelectCommand(NpgsqlConnection connection)
