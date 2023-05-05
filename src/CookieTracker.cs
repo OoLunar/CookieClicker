@@ -185,12 +185,12 @@ reconnect:
                 {
                     command.Prepare();
                 }
-                _semaphore.Release();
             }
             catch (Exception)
             {
                 goto reconnect;
             }
+            _semaphore.Release();
         }
 
         private static NpgsqlCommand GetSelectCommand(NpgsqlConnection connection)
