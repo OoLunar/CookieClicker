@@ -20,6 +20,7 @@ using Microsoft.Extensions.Logging;
 using OoLunar.CookieClicker.GenHttp;
 using OoLunar.CookieClicker.Headers;
 using OoLunar.CookieClicker.Routes;
+using Remora.Discord.API.Extensions;
 
 namespace OoLunar.CookieClicker
 {
@@ -37,6 +38,8 @@ namespace OoLunar.CookieClicker
             IConfiguration configuration = configurationBuilder.Build();
             serviceCollection.AddSingleton(configuration);
             serviceCollection.AddLogging(loggingBuilder => HttpLogger.ConfigureLogging(loggingBuilder, configuration));
+            serviceCollection.AddOptions();
+            serviceCollection.ConfigureDiscordJsonConverters();
             serviceCollection.AddSingleton<CookieTracker>();
             serviceCollection.AddSingleton<DiscordHeaderAuthentication>();
             serviceCollection.AddSingleton<DiscordSlashCommandHandler>();
@@ -67,7 +70,7 @@ namespace OoLunar.CookieClicker
                     .Add("terms", ModMarkdown.Page(Resource.FromAssembly(typeof(Program).Assembly, "TermsOfService.md"))
                         .Title("Terms of Service - Cookie Clicker")
                         .Description("Cookie Clicker Discord bot's Terms of Service outline prohibited conduct, user responsibility, disclaimer of warranty and liability, indemnification, termination, and changes to the terms and conditions. By using the bot, you agree to these terms."))
-                    .Add("favicon.ico", Download.From(Resource.FromAssembly(typeof(Program).Assembly, "res.favicon.ico")))
+                    .Add("favicon.ico", Download.From(Resource.FromAssembly(typeof(Program).Assembly, "favicon.ico")))
                     .Add("res", Listing.From(ResourceTree.FromAssembly(typeof(Program).Assembly, "res")))
                     .Index(readme);
 

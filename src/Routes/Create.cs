@@ -1,7 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text.Json;
 using GenHTTP.Api.Content;
 using GenHTTP.Api.Protocol;
+using GenHTTP.Modules.Conversion.Providers.Json;
+using Microsoft.Extensions.Options;
 using Remora.Discord.API.Abstractions.Objects;
 using Remora.Discord.API.Objects;
 using Remora.Rest.Core;
@@ -10,25 +14,46 @@ namespace OoLunar.CookieClicker.Routes
 {
     public sealed class InteractionHandler
     {
+        private readonly JsonSerializerOptions _jsonSerializerOptions;
         private readonly CookieTracker _cookieTracker;
         private readonly DiscordSlashCommandHandler _slashCommandHandler;
 
-        public InteractionHandler(CookieTracker cookieTracker, DiscordSlashCommandHandler slashCommandHandler)
+        public InteractionHandler(CookieTracker cookieTracker, DiscordSlashCommandHandler slashCommandHandler, IOptionsSnapshot<JsonSerializerOptions> jsonSerializerOptions)
         {
             ArgumentNullException.ThrowIfNull(cookieTracker, nameof(cookieTracker));
             ArgumentNullException.ThrowIfNull(slashCommandHandler, nameof(slashCommandHandler));
+            ArgumentNullException.ThrowIfNull(jsonSerializerOptions, nameof(jsonSerializerOptions));
 
             _cookieTracker = cookieTracker;
             _slashCommandHandler = slashCommandHandler;
+            _jsonSerializerOptions = jsonSerializerOptions.Get("Discord");
         }
 
-        public InteractionResponse? Handle(Interaction interaction) => interaction.Type switch
+        public IResponse Handle(IRequest request)
         {
-            InteractionType.Ping => new InteractionResponse(InteractionCallbackType.Pong),
-            InteractionType.ApplicationCommand => CreateCookie(interaction),
-            InteractionType.MessageComponent => ClickCookie(interaction),
-            _ => throw new ProviderException(ResponseStatus.BadRequest, $"Unknown interaction type: {interaction.Type}")
-        };
+            if (request.ContentType?.KnownType != ContentType.ApplicationJson)
+            {
+                throw new ProviderException(ResponseStatus.BadRequest, "Invalid content type");
+            }
+            else if (request.Content is null || request.Content.Length == 0)
+            {
+                throw new ProviderException(ResponseStatus.BadRequest, "Missing interaction data");
+            }
+
+            request.Content.Seek(0, SeekOrigin.Begin);
+            Interaction interaction = JsonSerializer.Deserialize<Interaction>(request.Content, _jsonSerializerOptions) ?? throw new ProviderException(ResponseStatus.BadRequest, "Invalid interaction data");
+            return request.Respond()
+                .Status(ResponseStatus.OK)
+                .Type(FlexibleContentType.Get(ContentType.ApplicationJson))
+                .Content(new JsonContent(interaction.Type switch
+                {
+                    InteractionType.Ping => new InteractionResponse(InteractionCallbackType.Pong),
+                    InteractionType.ApplicationCommand => CreateCookie(interaction)!,
+                    InteractionType.MessageComponent => ClickCookie(interaction)!,
+                    _ => throw new ProviderException(ResponseStatus.BadRequest, $"Unknown interaction type: {interaction.Type}")
+                }, _jsonSerializerOptions))
+                .Build();
+        }
 
         private InteractionResponse? CreateCookie(Interaction interaction)
         {
@@ -45,9 +70,10 @@ namespace OoLunar.CookieClicker.Routes
                     new ActionRowComponent(
                         Components: new List<IButtonComponent>() {
                             new ButtonComponent(
+                                Emoji: new Optional<IPartialEmoji>(new Emoji(null, "🍪")),
                                 CustomID: cookie.Id.ToString(),
                                 Style: ButtonComponentStyle.Primary,
-                                Label: "Click the cookie!"
+                                Label: "Click me!"
                             )
                         }
                     )
@@ -63,9 +89,10 @@ namespace OoLunar.CookieClicker.Routes
                 new ActionRowComponent(
                     Components: new List<IButtonComponent>() {
                         new ButtonComponent(
+                            Emoji: new Optional<IPartialEmoji>(new Emoji(null, "🍪")),
                             CustomID: cookieId.ToString(),
                             Style: ButtonComponentStyle.Primary,
-                            Label: "Click the cookie!"
+                            Label: "Click me!"
                         )
                     }
                 )
