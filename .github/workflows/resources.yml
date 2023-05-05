@@ -15,7 +15,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          submodules: recursive
           fetch-depth: 0
       - name: Generate Assets
         run: tools/generate-assets.sh
