@@ -25,7 +25,7 @@ regenerate()
 
 # No need to remove the old files as they will be overwritten
 regenerate "res/debug/icon.svg"
-regenerate "res/release/icon.png"
+regenerate "res/release/icon.svg"
 
 # Check if any files were modified
 git diff-index --quiet HEAD

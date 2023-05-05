@@ -6,6 +6,7 @@ on:
       - "res/debug/icon.svg"
       - "res/release/icon.svg"
       - "tools/generate-assets.sh"
+      - ".github/workflows/resources.yml"
 
 jobs:
   build-pr:
