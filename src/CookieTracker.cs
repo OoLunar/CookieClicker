@@ -20,6 +20,7 @@ namespace OoLunar.CookieClicker
         private readonly Dictionary<Ulid, CachedCookie> _cachedCookies = new();
         private readonly NpgsqlConnection _databaseConnection;
         private readonly ILogger<CookieTracker> _logger;
+        private readonly SemaphoreSlim _dbConnectionSemaphore = new(1, 1);
         private readonly SemaphoreSlim _semaphore = new(1, 1);
         private readonly PeriodicTimer _timer;
         private readonly Task _bakingTask;
@@ -166,7 +167,7 @@ namespace OoLunar.CookieClicker
 
         private void InitConnection(object? sender, StateChangeEventArgs eventArgs)
         {
-            _semaphore.Wait();
+            _dbConnectionSemaphore.Wait();
 
             while (_databaseConnection.FullState is ConnectionState.Closed or ConnectionState.Broken)
             {
@@ -183,7 +184,7 @@ namespace OoLunar.CookieClicker
                     _logger.LogWarning("Failed to reopen connection to database, retrying.");
                 }
             }
-            _semaphore.Release();
+            _dbConnectionSemaphore.Release();
         }
 
         private static NpgsqlCommand GetSelectCommand(NpgsqlConnection connection)
