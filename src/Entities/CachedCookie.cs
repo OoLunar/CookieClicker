@@ -1,5 +1,4 @@
 using System;
-using System.Threading;
 
 namespace OoLunar.CookieClicker.Entities
 {
@@ -17,11 +16,13 @@ namespace OoLunar.CookieClicker.Entities
             IsSaved = saved;
         }
 
-        public ulong Click()
+        public decimal Click()
         {
-            ulong value = Interlocked.Increment(ref Cookie.Clicks);
-            LastModified = DateTime.UtcNow;
-            return value;
+            lock (Cookie)
+            {
+                LastModified = DateTime.UtcNow;
+                return ++Cookie.Clicks;
+            }
         }
     }
 }

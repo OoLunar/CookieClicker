@@ -7,6 +7,6 @@ namespace OoLunar.CookieClicker.Entities
     {
         [Key]
         public Ulid Id { get; init; } = Ulid.NewUlid();
-        public ulong Clicks;
+        public decimal Clicks;
     }
 }

@@ -33,7 +33,6 @@ namespace OoLunar.CookieClicker
 
             _logger = logger;
             _timer = new PeriodicTimer(TimeSpan.FromSeconds(configuration.GetValue("CookieTracker:Period", 30)));
-
             _databaseConnection = NpgsqlDataSource.Create(CookieDatabaseContext.GetConnectionString(configuration)).CreateConnection();
             _databaseConnection.StateChange += InitConnection;
             _databaseCommands = new Dictionary<DatabaseOperation, NpgsqlCommand>
@@ -53,7 +52,7 @@ namespace OoLunar.CookieClicker
             _cachedCookies.Add(cookie.Id, new(cookie, false));
         }
 
-        public ulong Click(Ulid cookieId)
+        public decimal Click(Ulid cookieId)
         {
             // Check if the cookie is in the cache. If it isn't, pull it from the database.
             if (!_cachedCookies.TryGetValue(cookieId, out CachedCookie? cachedCookie))
