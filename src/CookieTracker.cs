@@ -168,7 +168,7 @@ namespace OoLunar.CookieClicker
         {
             _semaphore.Wait();
 
-            while (_databaseConnection.CurrentState is ConnectionState.Closed or ConnectionState.Broken)
+            while (_databaseConnection.FullState is ConnectionState.Closed or ConnectionState.Broken)
             {
                 try
                 {
