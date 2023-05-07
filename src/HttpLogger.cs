@@ -22,6 +22,9 @@ namespace OoLunar.CookieClicker
         internal static readonly Action<Microsoft.Extensions.Logging.ILogger, int, string, Exception?> RegisterSlashCommandsFailed = LoggerMessage.Define<int, string>(LogLevel.Error, new EventId(2, "SlashCommands failed to register"), "Failed to register slash commands: {HttpStatusCode} {ReasonPhrase}");
         internal static readonly Action<Microsoft.Extensions.Logging.ILogger, int, Exception?> CookieCreated = LoggerMessage.Define<int>(LogLevel.Debug, new EventId(3, "Cookie Database Operation"), "Created {Count:N0} cookies!");
         internal static readonly Action<Microsoft.Extensions.Logging.ILogger, int, Exception?> CookieUpdated = LoggerMessage.Define<int>(LogLevel.Debug, new EventId(3, "Cookie Database Operation"), "Updated {Count:N0} cookies!");
+        internal static readonly Action<Microsoft.Extensions.Logging.ILogger, Exception?> BakingError = LoggerMessage.Define(LogLevel.Error, new EventId(3, "Cookie Database Operation"), "There was an error baking cookies!");
+        internal static readonly Action<Microsoft.Extensions.Logging.ILogger, Exception?> DbConnection = LoggerMessage.Define(LogLevel.Debug, new EventId(4, "Database"), "Connected to database.");
+        internal static readonly Action<Microsoft.Extensions.Logging.ILogger, Exception?> DbConnectionError = LoggerMessage.Define(LogLevel.Error, new EventId(4, "Database"), "Failed to connect to database.");
 
         private readonly ILogger<HttpLogger> _logger;
 

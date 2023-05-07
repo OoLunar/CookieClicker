@@ -20,6 +20,7 @@ namespace OoLunar.CookieClicker
         private readonly Dictionary<Ulid, CachedCookie> _cachedCookies = new();
         private readonly NpgsqlConnection _databaseConnection;
         private readonly ILogger<CookieTracker> _logger;
+        private readonly SemaphoreSlim _dbConnectionSemaphore = new(1, 1);
         private readonly SemaphoreSlim _semaphore = new(1, 1);
         private readonly PeriodicTimer _timer;
         private readonly Task _bakingTask;
@@ -149,6 +150,10 @@ namespace OoLunar.CookieClicker
                         HttpLogger.CookieUpdated(_logger, await updateCommand.ExecuteNonQueryAsync(), null);
                     }
                 }
+                catch(Exception exception)
+                {
+                    HttpLogger.BakingError(_logger, exception);
+                }
                 finally
                 {
                     _semaphore.Release();
@@ -171,21 +176,26 @@ namespace OoLunar.CookieClicker
                 return;
             }
 
-            _semaphore.Wait();
-reconnect:
-            try
+            _dbConnectionSemaphore.Wait();
+
+            while (_databaseConnection.FullState is ConnectionState.Closed or ConnectionState.Broken)
             {
-                _databaseConnection.Open();
-                foreach (DbCommand command in _databaseCommands.Values)
+                try
                 {
-                    command.Prepare();
+                    _databaseConnection.Open();
+                    foreach (DbCommand command in _databaseCommands.Values)
+                    {
+                        command.Prepare();
+                    }
+                    HttpLogger.DbConnection(_logger, null);
+                }
+                catch (Exception exception)
+                {
+                    HttpLogger.DbConnectionError(_logger, exception);
                 }
             }
-            catch (Exception)
-            {
-                goto reconnect;
-            }
-            _semaphore.Release();
+
+            _dbConnectionSemaphore.Release();
         }
 
         private static NpgsqlCommand GetSelectCommand(NpgsqlConnection connection)
