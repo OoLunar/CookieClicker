@@ -166,24 +166,22 @@ namespace OoLunar.CookieClicker
 
         private void InitConnection(object? sender, StateChangeEventArgs eventArgs)
         {
-            if (eventArgs.CurrentState is not ConnectionState.Closed and not ConnectionState.Broken)
-            {
-                return;
-            }
-
             _semaphore.Wait();
-reconnect:
-            try
+
+            while (_databaseConnection.CurrentState is ConnectionState.Closed or ConnectionState.Broken)
             {
-                _databaseConnection.Open();
-                foreach (DbCommand command in _databaseCommands.Values)
+                try
                 {
-                    command.Prepare();
+                    _databaseConnection.Open();
+                    foreach (DbCommand command in _databaseCommands.Values)
+                    {
+                        command.Prepare();
+                    }
                 }
-            }
-            catch (Exception)
-            {
-                goto reconnect;
+                catch (Exception)
+                {
+                    _logger.LogWarning("Failed to reopen connection to database, retrying.");
+                }
             }
             _semaphore.Release();
         }
