@@ -182,12 +182,14 @@ namespace OoLunar.CookieClicker
                     {
                         command.Prepare();
                     }
+                    HttpLogger.DbConnection(_logger, null);
                 }
                 catch (Exception exception)
                 {
                     HttpLogger.DbConnectionError(_logger, exception);
                 }
             }
+
             _dbConnectionSemaphore.Release();
         }
 
