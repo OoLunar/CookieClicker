@@ -150,6 +150,10 @@ namespace OoLunar.CookieClicker
                         HttpLogger.CookieUpdated(_logger, await updateCommand.ExecuteNonQueryAsync(), null);
                     }
                 }
+                catch(Exception exception)
+                {
+                    HttpLogger.BakingError(_logger, exception);
+                }
                 finally
                 {
                     _semaphore.Release();
