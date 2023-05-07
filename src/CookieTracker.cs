@@ -179,9 +179,9 @@ namespace OoLunar.CookieClicker
                         command.Prepare();
                     }
                 }
-                catch (Exception)
+                catch (Exception exception)
                 {
-                    _logger.LogWarning("Failed to reopen connection to database, retrying.");
+                    HttpLogger.DbConnectionError(_logger, exception);
                 }
             }
             _dbConnectionSemaphore.Release();
