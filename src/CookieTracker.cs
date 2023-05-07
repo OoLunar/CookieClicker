@@ -171,6 +171,11 @@ namespace OoLunar.CookieClicker
 
         private void InitConnection(object? sender, StateChangeEventArgs eventArgs)
         {
+            if (eventArgs.CurrentState is not ConnectionState.Closed and not ConnectionState.Broken)
+            {
+                return;
+            }
+
             _dbConnectionSemaphore.Wait();
 
             while (_databaseConnection.FullState is ConnectionState.Closed or ConnectionState.Broken)
