@@ -7,6 +7,8 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Remora.Discord.API.Objects;
 using Remora.Rest.Core;
 
 namespace OoLunar.CookieClicker
@@ -19,15 +21,18 @@ namespace OoLunar.CookieClicker
         private readonly string _applicationId;
         private readonly ILogger<DiscordSlashCommandHandler> _logger;
         private readonly HttpClient _httpClient = new();
+        private readonly JsonSerializerOptions _jsonSerializerOptions;
 
-        public DiscordSlashCommandHandler(IConfiguration configuration, ILogger<DiscordSlashCommandHandler> logger)
+        public DiscordSlashCommandHandler(IConfiguration configuration, ILogger<DiscordSlashCommandHandler> logger, IOptionsSnapshot<JsonSerializerOptions> jsonSerializerOptions)
         {
             ArgumentNullException.ThrowIfNull(configuration, nameof(configuration));
             ArgumentNullException.ThrowIfNull(logger, nameof(logger));
+            ArgumentNullException.ThrowIfNull(jsonSerializerOptions, nameof(jsonSerializerOptions));
 
             _token = configuration["Discord:Token"] ?? throw new ArgumentException("Discord token is not specified.");
             _applicationId = configuration["Discord:ApplicationId"] ?? throw new ArgumentException("Discord application id is not specified.");
             _logger = logger;
+            _jsonSerializerOptions = jsonSerializerOptions.Get("Discord");
 
             string userAgent = configuration.GetValue("Discord:UserAgent", "OoLunar.CookieClicker")!;
             string githubUrl = configuration.GetValue("Discord:GithubUrl", "https://github.com/OoLunar/CookieClicker")!;
@@ -48,11 +53,10 @@ namespace OoLunar.CookieClicker
                 return;
             }
 
-            JsonDocument slashCommand = await response.Content.ReadFromJsonAsync<JsonDocument>() ?? throw new InvalidOperationException("Failed to parse slash command response.");
-            string slashCommandId = slashCommand.RootElement[0].GetProperty("id").GetString() ?? throw new InvalidOperationException("Missing 'id' property.");
-            CreateCookieCommandId = Snowflake.TryParse(slashCommandId, out Snowflake? commandId)
-                ? commandId.Value
-                : throw new InvalidOperationException($"Failed to parse slash command id: {slashCommandId}");
+            ApplicationCommand[] commands = await response.Content.ReadFromJsonAsync<ApplicationCommand[]>(_jsonSerializerOptions) ?? throw new InvalidOperationException("Failed to parse slash command response.");
+
+            // TODO: Application command handler
+            CreateCookieCommandId = commands[0].ID;
             HttpLogger.RegisterSlashCommands(_logger, null);
         }
 
