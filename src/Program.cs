@@ -19,7 +19,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using OoLunar.CookieClicker.GenHttp;
 using OoLunar.CookieClicker.Headers;
-using OoLunar.CookieClicker.Routes;
 using Remora.Discord.API.Extensions;
 
 namespace OoLunar.CookieClicker
@@ -43,14 +42,14 @@ namespace OoLunar.CookieClicker
             serviceCollection.AddSingleton<CookieTracker>();
             serviceCollection.AddSingleton<DiscordHeaderAuthentication>();
             serviceCollection.AddSingleton<DiscordSlashCommandHandler>();
-            serviceCollection.AddSingleton<InteractionHandler>();
+            serviceCollection.AddSingleton<RouteDispatcher>();
             serviceCollection.AddSingleton<JsonErrorMapper>();
             serviceCollection.AddSingleton<HttpLogger>();
             serviceCollection.AddSingleton((serviceProvider) =>
             {
                 DiscordHeaderAuthentication discordHeaderAuthentication = serviceProvider.GetRequiredService<DiscordHeaderAuthentication>();
                 IConfiguration configuration = serviceProvider.GetRequiredService<IConfiguration>();
-                InteractionHandler interactionHandler = serviceProvider.GetRequiredService<InteractionHandler>();
+                RouteDispatcher interactionHandler = serviceProvider.GetRequiredService<RouteDispatcher>();
                 JsonErrorMapper jsonErrorMapper = serviceProvider.GetRequiredService<JsonErrorMapper>();
                 HttpLogger httpLogger = serviceProvider.GetRequiredService<HttpLogger>();
 
@@ -98,7 +97,7 @@ namespace OoLunar.CookieClicker
             });
 
             IServiceProvider serviceProvider = serviceCollection.BuildServiceProvider();
-            await serviceProvider.GetRequiredService<DiscordSlashCommandHandler>().RegisterAsync();
+            await serviceProvider.GetRequiredService<DiscordSlashCommandHandler>().RegisterAsync(serviceProvider);
             HttpLogger.ServerStart(serviceProvider.GetRequiredService<ILogger<Program>>(), configuration.GetValue("Server:Address", "127.0.0.1")!, configuration.GetValue<ushort>("Server:Port", 8080), null);
             return serviceProvider.GetRequiredService<IServerHost>().Run();
         }
