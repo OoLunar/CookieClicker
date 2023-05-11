@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using OoLunar.CookieClicker.Attributes;
 using Remora.Discord.API.Abstractions.Objects;
@@ -19,9 +20,13 @@ namespace OoLunar.CookieClicker.Entities.CommandFramework
         public FrozenDictionary<CultureInfo, string> Descriptions { get; init; } = FrozenDictionary<CultureInfo, string>.Empty;
         public List<Command> Subcommands { get; init; } = new();
 
-        public nint MethodPointer { get; init; }
+        public Func<Interaction, Task<InteractionResponse>>? MethodPointer { get; init; }
         public List<ApplicationCommandOption> Options { get; init; } = new();
         public DiscordPermissionSet? RequiredPermissions { get; init; }
+
+        public string Name => Names[EnglishCultureInfo];
+        public string Description => Descriptions[EnglishCultureInfo];
+        public bool IsGroupCommand => Subcommands.Count != 0;
 
         public Command(MemberInfo memberInfo, CommandAttribute commandAttribute, IServiceProvider serviceProvider)
         {
@@ -73,7 +78,7 @@ namespace OoLunar.CookieClicker.Entities.CommandFramework
                 ));
             }
 
-            MethodPointer = methodInfo.MethodHandle.Value;
+            MethodPointer = methodInfo.CreateDelegate<Func<Interaction, Task<InteractionResponse>>>();
             Options = options.ToList();
         }
 

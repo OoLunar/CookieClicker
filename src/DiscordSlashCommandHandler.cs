@@ -17,6 +17,7 @@ using Microsoft.Extensions.Options;
 using OoLunar.CookieClicker.Attributes;
 using OoLunar.CookieClicker.Entities.CommandFramework;
 using Remora.Discord.API;
+using Remora.Discord.API.Abstractions.Objects;
 using Remora.Discord.API.Objects;
 using Remora.Rest.Core;
 
@@ -24,8 +25,7 @@ namespace OoLunar.CookieClicker
 {
     public sealed class DiscordSlashCommandHandler : IDisposable
     {
-        public Snowflake CreateCookieCommandId { get; private set; }
-        public FrozenDictionary<Snowflake, Command> Commands { get; private set; } = FrozenDictionary<Snowflake, Command>.Empty;
+        public FrozenDictionary<string, Command> Commands { get; private set; } = FrozenDictionary<string, Command>.Empty;
 
         private readonly string _token;
         private readonly Snowflake _applicationId;
@@ -65,7 +65,7 @@ namespace OoLunar.CookieClicker
 
         public async Task RegisterAsync(IServiceProvider serviceProvider)
         {
-            List<Command> commands = new();
+            List<Command> localCommands = new();
             foreach (Type type in typeof(DiscordSlashCommandHandler).Assembly.GetExportedTypes())
             {
                 if (type.IsAbstract || type.GetCustomAttribute<CommandAttribute>() is not CommandAttribute commandAttribute)
@@ -73,12 +73,12 @@ namespace OoLunar.CookieClicker
                     continue;
                 }
 
-                commands.Add(new Command(commandAttribute, type, serviceProvider));
+                localCommands.Add(new Command(commandAttribute, type, serviceProvider));
             }
 
             HttpRequestMessage request = new(HttpMethod.Put, $"https://discord.com/api/v10/applications/{_applicationId}/commands")
             {
-                Content = JsonContent.Create(commands.Select(command => (BulkApplicationCommandData)command).ToArray(), typeof(BulkApplicationCommandData[]), MediaTypeHeaderValue.Parse("application/json"), _jsonSerializerOptions)
+                Content = JsonContent.Create(localCommands.Select(command => (BulkApplicationCommandData)command).ToArray(), typeof(BulkApplicationCommandData[]), MediaTypeHeaderValue.Parse("application/json"), _jsonSerializerOptions)
             };
             request.Headers.Add("Authorization", $"Bot {_token}");
 
@@ -89,22 +89,78 @@ namespace OoLunar.CookieClicker
                 return;
             }
 
-            ApplicationCommand[] receivedCommands = await response.Content.ReadFromJsonAsync<ApplicationCommand[]>(_jsonSerializerOptions) ?? throw new InvalidOperationException("Failed to parse slash command response.");
-
-            // TODO: Application command handler
-            CreateCookieCommandId = receivedCommands[0].ID;
+            RegisterCommands(await response.Content.ReadFromJsonAsync<ApplicationCommand[]>(_jsonSerializerOptions) ?? throw new InvalidOperationException("Failed to parse slash command response."), localCommands);
             HttpLogger.RegisterSlashCommands(_logger, null);
+        }
+
+        private void RegisterCommands(ApplicationCommand[] receivedCommands, List<Command> localCommands)
+        {
+            Dictionary<string, Command> commands = new();
+            foreach (ApplicationCommand applicationCommand in receivedCommands)
+            {
+                foreach (Command localCommand in localCommands)
+                {
+                    if (applicationCommand.Name != localCommand.Name)
+                    {
+                        continue;
+                    }
+                    else if (applicationCommand.Options.IsDefined() && applicationCommand.Options.Value.All(option => option.Type is ApplicationCommandOptionType.SubCommand or ApplicationCommandOptionType.SubCommandGroup))
+                    {
+                        foreach (IApplicationCommandOption option in applicationCommand.Options.Value)
+                        {
+                            foreach (Command subcommand in localCommand.Subcommands)
+                            {
+                                if (subcommand.Name == option.Name)
+                                {
+                                    commands.Add($"{applicationCommand.Name} {subcommand.Name}", subcommand);
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        commands.Add(applicationCommand.Name, localCommand);
+                    }
+                }
+            }
+
+            Commands = commands.ToFrozenDictionary();
         }
 
         public unsafe InteractionResponse ExecuteCommand(Interaction interaction)
         {
-            if (Commands.TryGetValue(interaction.Data.Value.AsT0.ID, out Command? command))
+            if (Commands.TryGetValue(GetCommandName(interaction), out Command? command))
             {
-                Task<InteractionResponse> task = ((delegate*<Interaction, Task<InteractionResponse>>)command.MethodPointer)(interaction);
+                Task<InteractionResponse> task = command.MethodPointer!(interaction);
                 return task.GetAwaiter().GetResult();
             }
 
             throw new ProviderException(ResponseStatus.NotFound, "Command not found.");
+        }
+
+        private static string GetCommandName(Interaction interaction)
+        {
+            Span<char> span = stackalloc char[74];
+            int position = interaction.Data.Value.AsT0.Name.Length;
+            interaction.Data.Value.AsT0.Name.AsSpan().CopyTo(span);
+            if (interaction.Data.Value.AsT0.Options.IsDefined())
+            {
+                IEnumerator<IApplicationCommandInteractionDataOption> options = interaction.Data.Value.AsT0.Options.Value.GetEnumerator();
+                while (options.MoveNext())
+                {
+                    if (options.Current.Type is not ApplicationCommandOptionType.SubCommand and not ApplicationCommandOptionType.SubCommandGroup)
+                    {
+                        continue;
+                    }
+
+                    span[position++] = ' ';
+                    options.Current.Name.AsSpan().CopyTo(span[position..(position + options.Current.Name.Length)]);
+                    position += options.Current.Name.Length;
+                    options = options.Current.Options.Value.GetEnumerator();
+                }
+            }
+
+            return span[..position].ToString();
         }
 
         public void Dispose() => ((IDisposable)_httpClient).Dispose();

@@ -29,10 +29,10 @@ namespace OoLunar.CookieClicker.Commands
         [CommandOption(ApplicationCommandOptionType.String, "message_text", "The text to display on the cookie.", false, 0)]
         [CommandOption(ApplicationCommandOptionType.String, "button_text", "The text to display on the button.", false, 1)]
         [CommandOption(ApplicationCommandOptionType.String, "button_emoji", "The emoji to display on the button.", false, 2)]
-        public Task<InteractionResponse> CreateAsync(Interaction interaction)
+        public static Task<InteractionResponse> CreateAsync(Interaction interaction)
         {
             Entities.Cookie cookie = new();
-            _cookieTracker.CreateCookie(cookie);
+            //_cookieTracker.CreateCookie(cookie);
             return Task.FromResult(new InteractionResponse(InteractionCallbackType.ChannelMessageWithSource, new Optional<OneOf.OneOf<IInteractionMessageCallbackData, IInteractionAutocompleteCallbackData, IInteractionModalCallbackData>>(new InteractionMessageCallbackData(
                 Content: $"Click the cookie to get started!",
                 Components: new List<IActionRowComponent>() {
@@ -55,17 +55,17 @@ namespace OoLunar.CookieClicker.Commands
         [CommandOption(ApplicationCommandOptionType.String, "message_text", "The text to display on the cookie.", false, 1)]
         [CommandOption(ApplicationCommandOptionType.String, "button_text", "The text to display on the button.", false, 2)]
         [CommandOption(ApplicationCommandOptionType.String, "button_emoji", "The emoji to display on the button.", false, 3)]
-        public Task<InteractionResponse> UpdateAsync(Interaction interaction)
+        public static Task<InteractionResponse> UpdateAsync(Interaction interaction)
         {
-            _logger.LogError("Not implemented.");
+            //_logger.LogError("Not implemented.");
             throw new NotImplementedException();
         }
 
         [Command("move", "Moves a cookie to the current channel.")]
         [CommandOption<ButtonAutoCompleteProvider>(ApplicationCommandOptionType.String, "button_id", "The ID of the button to move.", true)]
-        public Task<InteractionResponse> MoveAsync(Interaction interaction)
+        public static Task<InteractionResponse> MoveAsync(Interaction interaction)
         {
-            _logger.LogError("Not implemented.");
+            //_logger.LogError("Not implemented.");
             throw new NotImplementedException();
         }
     }
