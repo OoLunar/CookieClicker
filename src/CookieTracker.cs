@@ -12,6 +12,7 @@ using Npgsql;
 using NpgsqlTypes;
 using OoLunar.CookieClicker.Database;
 using OoLunar.CookieClicker.Entities;
+using Remora.Rest.Core;
 
 namespace OoLunar.CookieClicker
 {
@@ -39,6 +40,7 @@ namespace OoLunar.CookieClicker
             {
                 [DatabaseOperation.Create] = GetInsertCommand(_databaseConnection),
                 [DatabaseOperation.Read] = GetSelectCommand(_databaseConnection),
+                [DatabaseOperation.BatchFetch] = GetBatchFetchCommand(_databaseConnection),
                 [DatabaseOperation.Update] = GetUpdateCommand(_databaseConnection),
                 [DatabaseOperation.Delete] = GetDeleteCommand(_databaseConnection)
             }.ToFrozenDictionary();
@@ -46,10 +48,11 @@ namespace OoLunar.CookieClicker
             _bakingTask = StartBakingAsync();
         }
 
-        public void CreateCookie(Cookie cookie)
+        public Cookie CreateCookie(Snowflake guildId, Snowflake channelId, Snowflake messageId)
         {
-            ArgumentNullException.ThrowIfNull(cookie, nameof(cookie));
+            Cookie cookie = new(guildId, channelId, messageId);
             _cachedCookies.Add(cookie.Id, new(cookie, false));
+            return cookie;
         }
 
         public decimal Click(Ulid cookieId)
@@ -71,7 +74,10 @@ namespace OoLunar.CookieClicker
                     cachedCookie = new(new Cookie()
                     {
                         Id = new Ulid(reader.GetFieldValue<Guid>(0)),
-                        Clicks = (ulong)reader.GetFieldValue<decimal>(1)
+                        Clicks = reader.GetFieldValue<decimal>(1),
+                        GuildId = new Snowflake((ulong)reader.GetInt64(2)),
+                        ChannelId = new Snowflake((ulong)reader.GetInt64(3)),
+                        MessageId = new Snowflake((ulong)reader.GetInt64(4))
                     }, true);
                     _cachedCookies.Add(cookieId, cachedCookie);
                 }
@@ -81,8 +87,89 @@ namespace OoLunar.CookieClicker
                 }
             }
 
-            // This method atomically increments the cookie's click count and returns the new value, while also resetting the cookie's timeout.
             return cachedCookie.Click();
+        }
+
+        public Cookie GetCookie(Ulid cookieId)
+        {
+            // Check if the cookie is in the cache. If it isn't, pull it from the database.
+            if (!_cachedCookies.TryGetValue(cookieId, out CachedCookie? cachedCookie))
+            {
+                _semaphore.Wait();
+                try
+                {
+                    DbCommand command = _databaseCommands[DatabaseOperation.Read];
+                    command.Parameters[0].Value = cookieId.ToGuid();
+                    using DbDataReader reader = command.ExecuteReader(CommandBehavior.SingleRow);
+                    if (!reader.Read())
+                    {
+                        throw new ArgumentException($"No cookie with ID {cookieId} exists.", nameof(cookieId));
+                    }
+
+                    cachedCookie = new(new Cookie()
+                    {
+                        Id = new Ulid(reader.GetFieldValue<Guid>(0)),
+                        Clicks = reader.GetFieldValue<decimal>(1),
+                        GuildId = new Snowflake(reader.GetFieldValue<ulong>(2)),
+                        ChannelId = new Snowflake(reader.GetFieldValue<ulong>(3)),
+                        MessageId = new Snowflake(reader.GetFieldValue<ulong>(4))
+                    }, true);
+                    _cachedCookies.Add(cookieId, cachedCookie);
+                }
+                finally
+                {
+                    _semaphore.Release();
+                }
+            }
+
+            return cachedCookie.Cookie;
+        }
+
+        public bool UpdateCookie(Ulid cookieId, Cookie updatedCookie)
+        {
+            _semaphore.Wait();
+            try
+            {
+                NpgsqlCommand command = _databaseCommands[DatabaseOperation.Update];
+                command.Parameters[0].Value = cookieId.ToGuid();
+                command.Parameters[1].Value = updatedCookie.Clicks;
+                command.Parameters[2].Value = updatedCookie.ChannelId;
+                command.Parameters[3].Value = updatedCookie.MessageId;
+                return command.ExecuteNonQuery() == 1;
+            }
+            finally
+            {
+                _semaphore.Release();
+            }
+        }
+
+        public IReadOnlyList<Cookie> GetCookies(Snowflake channelId)
+        {
+            _semaphore.Wait();
+            try
+            {
+                DbCommand command = _databaseCommands[DatabaseOperation.BatchFetch];
+                command.Parameters[0].Value = (long)channelId.Value;
+                using DbDataReader reader = command.ExecuteReader();
+                List<Cookie> cookies = new();
+                while (reader.Read())
+                {
+                    cookies.Add(new Cookie()
+                    {
+                        Id = new Ulid(reader.GetFieldValue<Guid>(0)),
+                        Clicks = reader.GetFieldValue<decimal>(1),
+                        GuildId = new Snowflake(reader.GetFieldValue<ulong>(2)),
+                        ChannelId = new Snowflake(reader.GetFieldValue<ulong>(3)),
+                        MessageId = new Snowflake(reader.GetFieldValue<ulong>(4))
+                    });
+                }
+
+                return cookies;
+            }
+            finally
+            {
+                _semaphore.Release();
+            }
         }
 
         private async Task StartBakingAsync()
@@ -149,7 +236,7 @@ namespace OoLunar.CookieClicker
                         HttpLogger.CookieUpdated(_logger, await updateCommand.ExecuteNonQueryAsync(), null);
                     }
                 }
-                catch(Exception exception)
+                catch (Exception exception)
                 {
                     HttpLogger.BakingError(_logger, exception);
                 }
@@ -200,7 +287,7 @@ namespace OoLunar.CookieClicker
         private static NpgsqlCommand GetSelectCommand(NpgsqlConnection connection)
         {
             NpgsqlCommand command = connection.CreateCommand();
-            command.CommandText = "SELECT * FROM Cookies WHERE Id = @Id LIMIT 1;";
+            command.CommandText = "SELECT * FROM cookies WHERE Id = @Id LIMIT 1;";
             NpgsqlParameter idParameter = command.CreateParameter();
             idParameter.ParameterName = "@Id";
             idParameter.NpgsqlDbType = NpgsqlDbType.Uuid;
@@ -213,7 +300,7 @@ namespace OoLunar.CookieClicker
         private static NpgsqlCommand GetUpdateCommand(NpgsqlConnection connection)
         {
             NpgsqlCommand command = connection.CreateCommand();
-            command.CommandText = "UPDATE cookies SET clicks = data_table.clicks FROM (SELECT unnest(ARRAY[@Ids]) AS id, unnest(ARRAY[@Clicks]) AS clicks) AS data_table WHERE cookies.id = data_table.id";
+            command.CommandText = "UPDATE cookies SET clicks = data_table.clicks, channel_id = data_table.channel_id, message_id = data_table.message_id FROM (SELECT unnest(ARRAY[@Ids]) AS id, unnest(ARRAY[@Clicks]) AS clicks, unnest(ARRAY[@ChannelId]) AS channel_id, unnest(ARRAY[@MessageId]) AS message_id) AS data_table WHERE cookies.id = data_table.id";
 
             NpgsqlParameter idsParameter = command.CreateParameter();
             idsParameter.ParameterName = "@Ids";
@@ -226,6 +313,32 @@ namespace OoLunar.CookieClicker
             clicksParameter.NpgsqlDbType = NpgsqlDbType.Array | NpgsqlDbType.Numeric;
             clicksParameter.Direction = ParameterDirection.Input;
             command.Parameters.Add(clicksParameter);
+
+            NpgsqlParameter channelIdParameter = command.CreateParameter();
+            channelIdParameter.ParameterName = "@ChannelId";
+            channelIdParameter.NpgsqlDbType = NpgsqlDbType.Array | NpgsqlDbType.Numeric;
+            channelIdParameter.Direction = ParameterDirection.Input;
+            command.Parameters.Add(channelIdParameter);
+
+            NpgsqlParameter messageIdParameter = command.CreateParameter();
+            messageIdParameter.ParameterName = "@MessageId";
+            messageIdParameter.NpgsqlDbType = NpgsqlDbType.Array | NpgsqlDbType.Numeric;
+            messageIdParameter.Direction = ParameterDirection.Input;
+            command.Parameters.Add(messageIdParameter);
+
+            return command;
+        }
+
+        private static NpgsqlCommand GetBatchFetchCommand(NpgsqlConnection connection)
+        {
+            NpgsqlCommand command = connection.CreateCommand();
+            command.CommandText = "SELECT * FROM cookies WHERE channel_id = @ChannelId;";
+
+            NpgsqlParameter channelIdsParameter = command.CreateParameter();
+            channelIdsParameter.ParameterName = "@ChannelId";
+            channelIdsParameter.NpgsqlDbType = NpgsqlDbType.Bigint;
+            channelIdsParameter.Direction = ParameterDirection.Input;
+            command.Parameters.Add(channelIdsParameter);
 
             return command;
         }

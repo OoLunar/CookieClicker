@@ -25,24 +25,22 @@ namespace OoLunar.CookieClicker
 {
     public sealed class DiscordSlashCommandHandler : IDisposable
     {
-        public FrozenDictionary<string, Command> Commands { get; private set; } = FrozenDictionary<string, Command>.Empty;
+        public FrozenDictionary<string, ImmutableCommand> Commands { get; private set; } = FrozenDictionary<string, ImmutableCommand>.Empty;
 
         private readonly string _token;
         private readonly Snowflake _applicationId;
         private readonly ILogger<DiscordSlashCommandHandler> _logger;
         private readonly HttpClient _httpClient = new();
         private readonly JsonSerializerOptions _jsonSerializerOptions;
+        private IServiceProvider? _serviceProvider { get; set; }
 
         [SuppressMessage("Roslyn", "IDE0045", Justification = "Ternary operator rabbit hole.")]
-        public DiscordSlashCommandHandler(IConfiguration configuration, ILogger<DiscordSlashCommandHandler> logger, IOptionsSnapshot<JsonSerializerOptions> jsonSerializerOptions)
+        public DiscordSlashCommandHandler(IConfiguration configuration, ILogger<DiscordSlashCommandHandler> logger, IOptionsSnapshot<JsonSerializerOptions> jsonSerializerOptions, HttpClient httpClient)
         {
             ArgumentNullException.ThrowIfNull(configuration, nameof(configuration));
             ArgumentNullException.ThrowIfNull(logger, nameof(logger));
             ArgumentNullException.ThrowIfNull(jsonSerializerOptions, nameof(jsonSerializerOptions));
 
-            _token = configuration["Discord:Token"] ?? throw new ArgumentException("Discord token is not specified.");
-            _logger = logger;
-            _jsonSerializerOptions = jsonSerializerOptions.Get("Discord");
             if (configuration.GetValue<string>("Discord:ApplicationId") is not string stringApplicationId)
             {
                 throw new ArgumentException("Discord application id is not specified.");
@@ -56,16 +54,17 @@ namespace OoLunar.CookieClicker
                 _applicationId = applicationId.Value;
             }
 
-            string userAgent = configuration.GetValue("Discord:UserAgent", "OoLunar.CookieClicker")!;
-            string githubUrl = configuration.GetValue("Discord:GithubUrl", "https://github.com/OoLunar/CookieClicker")!;
-            string version = typeof(DiscordSlashCommandHandler).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "0.1.0";
-            _httpClient.DefaultRequestHeaders.UserAgent.Clear();
-            _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd($"{userAgent} ({githubUrl}, v{version})");
+            _token = configuration["Discord:Token"] ?? throw new ArgumentException("Discord token is not specified.");
+            _logger = logger;
+            _jsonSerializerOptions = jsonSerializerOptions.Get("Discord");
+            _httpClient = httpClient;
         }
 
+        [MemberNotNull(nameof(_serviceProvider))]
         public async Task RegisterAsync(IServiceProvider serviceProvider)
         {
-            List<Command> localCommands = new();
+            _serviceProvider = serviceProvider;
+            List<ImmutableCommand> localCommands = new();
             foreach (Type type in typeof(DiscordSlashCommandHandler).Assembly.GetExportedTypes())
             {
                 if (type.IsAbstract || type.GetCustomAttribute<CommandAttribute>() is not CommandAttribute commandAttribute)
@@ -73,7 +72,7 @@ namespace OoLunar.CookieClicker
                     continue;
                 }
 
-                localCommands.Add(new Command(commandAttribute, type, serviceProvider));
+                localCommands.Add(new ImmutableCommand(commandAttribute, type, serviceProvider));
             }
 
             HttpRequestMessage request = new(HttpMethod.Put, $"https://discord.com/api/v10/applications/{_applicationId}/commands")
@@ -93,12 +92,12 @@ namespace OoLunar.CookieClicker
             HttpLogger.RegisterSlashCommands(_logger, null);
         }
 
-        private void RegisterCommands(ApplicationCommand[] receivedCommands, List<Command> localCommands)
+        private void RegisterCommands(ApplicationCommand[] receivedCommands, List<ImmutableCommand> localCommands)
         {
-            Dictionary<string, Command> commands = new();
+            Dictionary<string, ImmutableCommand> commands = new();
             foreach (ApplicationCommand applicationCommand in receivedCommands)
             {
-                foreach (Command localCommand in localCommands)
+                foreach (ImmutableCommand localCommand in localCommands)
                 {
                     if (applicationCommand.Name != localCommand.Name)
                     {
@@ -108,7 +107,7 @@ namespace OoLunar.CookieClicker
                     {
                         foreach (IApplicationCommandOption option in applicationCommand.Options.Value)
                         {
-                            foreach (Command subcommand in localCommand.Subcommands)
+                            foreach (ImmutableCommand subcommand in localCommand.Subcommands)
                             {
                                 if (subcommand.Name == option.Name)
                                 {
@@ -127,15 +126,40 @@ namespace OoLunar.CookieClicker
             Commands = commands.ToFrozenDictionary();
         }
 
-        public unsafe InteractionResponse ExecuteCommand(Interaction interaction)
+        public InteractionResponse ExecuteCommand(Interaction interaction)
         {
-            if (Commands.TryGetValue(GetCommandName(interaction), out Command? command))
+            if (!Commands.TryGetValue(GetCommandName(interaction), out ImmutableCommand? command))
             {
-                Task<InteractionResponse> task = command.MethodPointer!(interaction);
-                return task.GetAwaiter().GetResult();
+                throw new ProviderException(ResponseStatus.NotFound, "Command not found.");
+            }
+            else if (command.IsGroupCommand)
+            {
+                throw new ProviderException(ResponseStatus.BadRequest, "Command is a group command.");
             }
 
-            throw new ProviderException(ResponseStatus.NotFound, "Command not found.");
+            Task<InteractionResponse> task = command.ExecuteAsync(interaction, _serviceProvider!);
+            return task.GetAwaiter().GetResult();
+        }
+
+        public InteractionAutocompleteCallbackData GetAutocompleteResult(Interaction interaction)
+        {
+            if (!Commands.TryGetValue(GetCommandName(interaction), out ImmutableCommand? command))
+            {
+                throw new ProviderException(ResponseStatus.NotFound, "Command not found.");
+            }
+            else if (command.IsGroupCommand)
+            {
+                throw new ProviderException(ResponseStatus.BadRequest, "Command is a group command.");
+            }
+            else if (!command.AutoCompleteProviders.TryGetValue(interaction.Data.Value.AsT0.Options.Value[0].Options.Value[0].Name, out IAutoCompleteProvider? provider) || provider is null)
+            {
+                throw new ProviderException(ResponseStatus.BadRequest, "Command Option does not have an autocomplete provider.");
+            }
+            else
+            {
+                Task<InteractionAutocompleteCallbackData> task = provider.GetAutocompleteResultAsync(interaction, interaction.Data.Value.AsT0.Options.Value[0]);
+                return task.GetAwaiter().GetResult();
+            }
         }
 
         private static string GetCommandName(Interaction interaction)

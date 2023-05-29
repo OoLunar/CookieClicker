@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
@@ -12,23 +13,27 @@ using Remora.Discord.API.Objects;
 
 namespace OoLunar.CookieClicker.Entities.CommandFramework
 {
-    public sealed class Command
+    public sealed record ImmutableCommand
     {
         private static readonly CultureInfo EnglishCultureInfo = CultureInfo.GetCultureInfoByIetfLanguageTag("en-US");
+        public delegate Task<InteractionResponse> CommandSignature(Interaction interaction, IServiceProvider serviceProvider);
 
         public FrozenDictionary<CultureInfo, string> Names { get; init; } = FrozenDictionary<CultureInfo, string>.Empty;
         public FrozenDictionary<CultureInfo, string> Descriptions { get; init; } = FrozenDictionary<CultureInfo, string>.Empty;
-        public List<Command> Subcommands { get; init; } = new();
+        public List<ImmutableCommand> Subcommands { get; init; } = new();
 
-        public Func<Interaction, Task<InteractionResponse>>? MethodPointer { get; init; }
         public List<ApplicationCommandOption> Options { get; init; } = new();
+        public FrozenDictionary<string, IAutoCompleteProvider> AutoCompleteProviders { get; init; } = FrozenDictionary<string, IAutoCompleteProvider>.Empty;
         public DiscordPermissionSet? RequiredPermissions { get; init; }
+        public CommandSignature? ExecuteAsync { get; init; }
 
         public string Name => Names[EnglishCultureInfo];
         public string Description => Descriptions[EnglishCultureInfo];
+
+        [MemberNotNullWhen(false, nameof(ExecuteAsync))]
         public bool IsGroupCommand => Subcommands.Count != 0;
 
-        public Command(MemberInfo memberInfo, CommandAttribute commandAttribute, IServiceProvider serviceProvider)
+        private ImmutableCommand(MemberInfo memberInfo, CommandAttribute commandAttribute, IServiceProvider serviceProvider)
         {
             Dictionary<CultureInfo, string> names;
             Dictionary<CultureInfo, string> descriptions;
@@ -48,9 +53,10 @@ namespace OoLunar.CookieClicker.Entities.CommandFramework
             RequiredPermissions = memberInfo.GetCustomAttribute<RequirePermissionAttribute>() is RequirePermissionAttribute requirePermissionAttribute ? new DiscordPermissionSet(requirePermissionAttribute.Permission) : null;
         }
 
-        public Command(CommandAttribute commandAttribute, MethodInfo methodInfo, IServiceProvider serviceProvider) : this(methodInfo, commandAttribute, serviceProvider)
+        public unsafe ImmutableCommand(CommandAttribute commandAttribute, MethodInfo methodInfo, IServiceProvider serviceProvider) : this(methodInfo, commandAttribute, serviceProvider)
         {
             List<ApplicationCommandOption> options = new();
+            Dictionary<string, IAutoCompleteProvider> autoCompleteProviders = new();
             foreach (CommandOptionAttribute methodOption in methodInfo.GetCustomAttributes<CommandOptionAttribute>().OrderBy(x => x.Order))
             {
                 Dictionary<CultureInfo, string> optionNames;
@@ -66,6 +72,11 @@ namespace OoLunar.CookieClicker.Entities.CommandFramework
                     optionDescriptions = new() { [EnglishCultureInfo] = methodOption.Description };
                 }
 
+                if (methodOption.AutoCompleteProvider is not null && ActivatorUtilities.CreateInstance(serviceProvider, methodOption.AutoCompleteProvider) is IAutoCompleteProvider autoCompleteProvider)
+                {
+                    autoCompleteProviders.Add(methodOption.Name, autoCompleteProvider);
+                }
+
                 options.Add(new ApplicationCommandOption(
                     methodOption.OptionType,
                     optionNames[EnglishCultureInfo],
@@ -78,32 +89,38 @@ namespace OoLunar.CookieClicker.Entities.CommandFramework
                 ));
             }
 
-            MethodPointer = methodInfo.CreateDelegate<Func<Interaction, Task<InteractionResponse>>>();
+            ExecuteAsync = methodInfo.IsStatic
+                ? methodInfo.CreateDelegate<CommandSignature>()
+                // TODO: Switch to an interface approach to allow for direct invocation of the object's method.
+                // This may require a custom attribute to mark the static methods as the ExecuteAsync entrypoint.
+                : ((interaction, serviceProvider) => (Task<InteractionResponse>)methodInfo.Invoke(ActivatorUtilities.CreateInstance(serviceProvider, methodInfo.DeclaringType!), new object[] { interaction })!);
+
             Options = options.ToList();
+            AutoCompleteProviders = autoCompleteProviders.ToFrozenDictionary();
         }
 
-        public Command(CommandAttribute commandAttribute, Type type, IServiceProvider serviceProvider) : this(type, commandAttribute, serviceProvider)
+        public ImmutableCommand(CommandAttribute commandAttribute, Type type, IServiceProvider serviceProvider) : this(type, commandAttribute, serviceProvider)
         {
-            List<Command> subcommands = new();
+            List<ImmutableCommand> subcommands = new();
             foreach (MethodInfo methodInfo in type.GetMethods())
             {
                 if (methodInfo.GetCustomAttribute<CommandAttribute>() is CommandAttribute methodCommandAttribute)
                 {
-                    subcommands.Add(new Command(methodCommandAttribute, methodInfo, serviceProvider));
+                    subcommands.Add(new ImmutableCommand(methodCommandAttribute, methodInfo, serviceProvider));
                 }
             }
 
-            if (subcommands.Count != 0)
+            Type[] nestedTypes = type.GetNestedTypes();
+            if (nestedTypes.Length != 0 && subcommands.Count != 0)
             {
-                Subcommands = subcommands.ToList();
-                return;
+                throw new InvalidOperationException($"Command {commandAttribute.Name} has both subcommands and methods.");
             }
 
-            foreach (Type subcommand in type.GetNestedTypes())
+            foreach (Type subcommand in nestedTypes)
             {
                 if (subcommand.GetCustomAttribute<CommandAttribute>() is CommandAttribute subcommandAttribute)
                 {
-                    subcommands.Add(new Command(subcommandAttribute, subcommand, serviceProvider));
+                    subcommands.Add(new ImmutableCommand(subcommandAttribute, subcommand, serviceProvider));
                 }
             }
 
@@ -112,7 +129,7 @@ namespace OoLunar.CookieClicker.Entities.CommandFramework
                 : subcommands.ToList();
         }
 
-        public static explicit operator BulkApplicationCommandData(Command command) => new(
+        public static explicit operator BulkApplicationCommandData(ImmutableCommand command) => new(
             command.Names[EnglishCultureInfo],
             command.Descriptions[EnglishCultureInfo],
             default,
@@ -122,7 +139,7 @@ namespace OoLunar.CookieClicker.Entities.CommandFramework
             command.Descriptions.ToFrozenDictionary(x => x.Key.Name, x => x.Value)
         );
 
-        public static explicit operator ApplicationCommandOption(Command command) => new(
+        public static explicit operator ApplicationCommandOption(ImmutableCommand command) => new(
             command.Subcommands.Count == 0 ? ApplicationCommandOptionType.SubCommand : ApplicationCommandOptionType.SubCommandGroup,
             command.Names[EnglishCultureInfo],
             command.Descriptions[EnglishCultureInfo],

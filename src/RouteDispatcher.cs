@@ -49,6 +49,7 @@ namespace OoLunar.CookieClicker
                 {
                     InteractionType.Ping => new InteractionResponse(InteractionCallbackType.Pong),
                     InteractionType.ApplicationCommand => _slashCommandHandler.ExecuteCommand(interaction),
+                    InteractionType.ApplicationCommandAutocomplete => _slashCommandHandler.GetAutocompleteResult(interaction),
                     InteractionType.MessageComponent => ClickCookie(interaction),
                     _ => throw new ProviderException(ResponseStatus.BadRequest, $"Unknown interaction type: {interaction.Type}")
                 }, _jsonSerializerOptions))

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
 using OoLunar.CookieClicker.Entities;
+using Remora.Rest.Core;
 
 namespace OoLunar.CookieClicker.Database
 {
@@ -27,9 +28,14 @@ namespace OoLunar.CookieClicker.Database
             return new(optionsBuilder.Options);
         }
 
+        protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder) => configurationBuilder
+            .Properties<Snowflake>()
+            .HaveConversion<SnowflakeConverter>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder) => modelBuilder.Entity<Cookie>(entity =>
         {
             entity.HasKey(cookie => cookie.Id);
+            entity.Property(cookie => cookie.Clicks);
             entity.Property(cookie => cookie.Id)
                 .HasConversion(id => id.ToGuid(), id => new Ulid(id))
                 .ValueGeneratedOnAdd();
@@ -45,7 +51,8 @@ namespace OoLunar.CookieClicker.Database
             Password = configuration.GetValue<string>("Database:Password")
         };
 
-        internal static void ConfigureOptions(DbContextOptionsBuilder optionsBuilder, IConfiguration configuration) => optionsBuilder.UseNpgsql(GetConnectionString(configuration).ToString(), options => options.EnableRetryOnFailure(5).CommandTimeout(5))
+        internal static void ConfigureOptions(DbContextOptionsBuilder optionsBuilder, IConfiguration configuration) => optionsBuilder
+            .UseNpgsql(GetConnectionString(configuration).ToString(), options => options.EnableRetryOnFailure(5).CommandTimeout(5))
             .UseSnakeCaseNamingConvention()
             .EnableThreadSafetyChecks(false);
     }

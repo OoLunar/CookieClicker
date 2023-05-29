@@ -4,6 +4,7 @@ namespace OoLunar.CookieClicker.Entities
     {
         Create,
         Read,
+        BatchFetch,
         Update,
         Delete
     }

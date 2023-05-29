@@ -1,5 +1,7 @@
 using System;
 using System.Net;
+using System.Net.Http;
+using System.Reflection;
 using System.Threading.Tasks;
 using GenHTTP.Api.Content.Templating;
 using GenHTTP.Api.Infrastructure;
@@ -39,6 +41,16 @@ namespace OoLunar.CookieClicker
             serviceCollection.AddLogging(loggingBuilder => HttpLogger.ConfigureLogging(loggingBuilder, configuration));
             serviceCollection.AddOptions();
             serviceCollection.ConfigureDiscordJsonConverters();
+            serviceCollection.AddSingleton(serviceProvider =>
+            {
+                HttpClient httpClient = new();
+                string userAgent = configuration.GetValue("Discord:UserAgent", "OoLunar.CookieClicker")!;
+                string githubUrl = configuration.GetValue("Discord:GithubUrl", "https://github.com/OoLunar/CookieClicker")!;
+                string version = typeof(DiscordSlashCommandHandler).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "0.1.0";
+                httpClient.DefaultRequestHeaders.UserAgent.Clear();
+                httpClient.DefaultRequestHeaders.UserAgent.ParseAdd($"{userAgent} ({githubUrl}, v{version})");
+                return httpClient;
+            });
             serviceCollection.AddSingleton<CookieTracker>();
             serviceCollection.AddSingleton<DiscordHeaderAuthentication>();
             serviceCollection.AddSingleton<DiscordSlashCommandHandler>();
