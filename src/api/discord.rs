@@ -1,76 +1,115 @@
-use std::fmt::Debug;
-
-use rocket::{
-    data::{FromData, Outcome, ToByteUnit},
-    http::Status,
-    serde::json::Json,
-    Data, Request, Route,
+use actix_web::{
+    dev::Payload,
+    http::StatusCode,
+    web::{Bytes, Json},
+    FromRequest, HttpRequest, Responder, ResponseError,
 };
-use serde::de::DeserializeOwned;
+
+use ed25519_compact::PublicKey;
+use futures::{Future, StreamExt, TryStreamExt};
+use serde::Deserialize;
+use std::{fmt::Debug, pin::Pin};
 use twilight_model::{
     application::interaction::{Interaction, InteractionType},
     http::interaction::{InteractionResponse, InteractionResponseType},
 };
 
-#[derive(Debug)]
+use derive_more::{Display, Error};
+
+#[derive(Debug, Display, Error)]
 enum DiscordHeaderError {
+    #[display(fmt = "Missing one of two required Ed25519 signature headers.")]
     MissingHeader,
+
+    #[display(fmt = "Invalid Ed25519 signature.")]
     InvalidHeader,
+
+    #[display(fmt = "Missing body.")]
     MissingBody,
+
+    #[display(fmt = "Invalid JSON body.")]
+    InvalidBody,
 }
 
-struct DiscordSigned<'r, T> {
-    pub body: Json<T>,
-    pub signature: &'r str,
-    pub timestamp: &'r str,
-}
-
-#[rocket::async_trait]
-impl<'r, T: DeserializeOwned + Send> FromData<'r> for DiscordSigned<'r, T> {
-    type Error = DiscordHeaderError;
-
-    async fn from_data(req: &'r Request<'_>, data: Data<'r>) -> Outcome<'r, Self> {
-        let signature = req.headers().get_one("X-Signature-Ed25519");
-        let timestamp = req.headers().get_one("X-Signature-Timestamp");
-        if signature.is_none() || timestamp.is_none() {
-            return Outcome::Failure((Status::BadRequest, DiscordHeaderError::MissingHeader));
-        }
-
-        let body = Json::<T>::from_data(req, data).await.unwrap() else {
-            return Outcome::Failure((Status::BadRequest, DiscordHeaderError::MissingBody));
-        };
-
-        let rawBody = data.open(8.megabytes()).into_bytes().await.unwrap();
-
-        let result = ed25519_compact::PublicKey::from_slice(todo!())
-            .unwrap()
-            .verify(
-                vec![timestamp.unwrap().as_bytes(), rawBody.leak()].concat(),
-                &ed25519_compact::Signature::from_slice(signature.unwrap().as_bytes()).unwrap(),
-            );
-
-        return match result {
-            Err(_) => Outcome::Failure((Status::BadRequest, DiscordHeaderError::InvalidHeader)),
-            Ok(_) => Outcome::Success(DiscordSigned {
-                body,
-                signature: signature.unwrap(),
-                timestamp: timestamp.unwrap(),
-            }),
-        };
+impl ResponseError for DiscordHeaderError {
+    fn status_code(&self) -> StatusCode {
+        StatusCode::BAD_REQUEST
     }
 }
 
-#[post("/discord", format = "json", data = "<interaction>")]
-fn ping(interaction: DiscordSigned<Interaction>) -> Json<InteractionResponse> {
-    return Json(match interaction.body.kind {
-        InteractionType::Ping => InteractionResponse {
-            kind: InteractionResponseType::Pong,
-            data: None,
-        },
-        _ => unimplemented!("Interaction type not implemented"),
-    });
+struct DiscordSigned<T> {
+    pub body: Json<T>,
+    pub signature: String,
+    pub timestamp: String,
 }
 
-pub fn routes() -> Vec<Route> {
-    routes![ping]
+impl<T: for<'de> Deserialize<'de>> FromRequest for DiscordSigned<T> {
+    type Error = DiscordHeaderError;
+    type Future = Pin<Box<dyn Future<Output = Result<DiscordSigned<T>, DiscordHeaderError>>>>;
+
+    fn from_request(req: &HttpRequest, payload: &mut Payload) -> Self::Future {
+        let signature = req.headers().get("X-Signature-Ed25519");
+        let timestamp = req.headers().get("X-Signature-Timestamp");
+        let content = req.headers().get("Content-Length");
+        let content_len = match content.and_then(|c| c.to_str().ok()?.parse::<usize>().ok()) {
+            Some(len) => len,
+            None => return Box::pin(async { Err(DiscordHeaderError::MissingHeader) }),
+        };
+
+        if content_len == 0 {
+            return Box::pin(async { Err(DiscordHeaderError::MissingBody) });
+        }
+
+        let collection = payload.left_stream().into_future();
+
+        Box::pin(async move {
+            let collection = collection.await;
+
+            if collection.iter().any(|result| result.is_err()) {
+                return Err(DiscordHeaderError::InvalidHeader);
+            }
+
+            let full_body: Vec<u8> = collection
+                .into_iter()
+                .map(|result| result.unwrap().to_vec())
+                .flatten()
+                .collect();
+
+            let result = PublicKey::from_slice(todo!()).unwrap().verify(
+                &full_body,
+                &ed25519_compact::Signature::from_slice(signature.unwrap().as_bytes()).unwrap(),
+            );
+
+            if result.is_err() {
+                return Err(DiscordHeaderError::InvalidHeader);
+            }
+
+            let body = Json::<T>::from_request(req, payload).await;
+            if body.is_err() {
+                return Err(DiscordHeaderError::InvalidBody);
+            }
+
+            Ok(DiscordSigned {
+                body: body.unwrap(),
+                signature: signature.unwrap().to_str().unwrap().to_string(),
+                timestamp: timestamp.unwrap().to_str().unwrap().to_string(),
+            })
+        })
+    }
+}
+
+#[post("/api/discord")]
+async fn ping(interaction: DiscordSigned<Interaction>) -> impl Responder {
+    match interaction.body.kind {
+        InteractionType::Ping => {
+            return (
+                StatusCode::OK,
+                Json(InteractionResponse {
+                    kind: InteractionResponseType::Pong,
+                    data: None,
+                }),
+            )
+        }
+        _ => unimplemented!("Interaction type not implemented"),
+    };
 }

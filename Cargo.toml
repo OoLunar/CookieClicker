@@ -4,8 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+actix-web = { version = "4.3.1", features = ["rustls"] }
+async-trait = "0.1.68"
+derive_more = "0.99.17"
 ed25519-compact = { version = "2.0.4", features = ["ed25519", "traits"] }
-rocket = { version = "=0.5.0-rc.3", features = ["json"] }
+futures = "0.3.28"
+mime = "0.3.17"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.96"
 twilight-http = "0.15.2"
