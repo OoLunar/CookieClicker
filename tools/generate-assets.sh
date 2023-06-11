@@ -26,6 +26,9 @@ regenerate()
 regenerate "res/debug/icon.svg"
 regenerate "res/release/icon.svg"
 
+# Copy the release icon and set it as the main logo
+cp "res/release/icon.png" "res/logo.png"
+
 # Check if any files were modified
 git config --global user.email "github-actions[bot]@users.noreply.github.com"
 git config --global user.name "github-actions[bot]"
