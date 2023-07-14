@@ -1,8 +1,9 @@
 use actix_web::{
     dev::Payload,
+    error::PayloadError,
     http::StatusCode,
     web::{Bytes, Json},
-    FromRequest, HttpRequest, Responder, ResponseError,
+    Either, FromRequest, HttpRequest, Responder, ResponseError,
 };
 
 use ed25519_compact::PublicKey;
@@ -60,17 +61,15 @@ impl<T: for<'de> Deserialize<'de>> FromRequest for DiscordSigned<T> {
             return Box::pin(async { Err(DiscordHeaderError::MissingBody) });
         }
 
-        let collection = payload.left_stream().into_future();
-
         Box::pin(async move {
-            let collection = collection.await;
-
-            if collection.iter().any(|result| result.is_err()) {
+            let collection = payload.left_stream().into_future().await;
+            if collection.0.iter().any(|result| result.is_err()) {
                 return Err(DiscordHeaderError::InvalidHeader);
             }
 
             let full_body: Vec<u8> = collection
-                .into_iter()
+                .0
+                .iter()
                 .map(|result| result.unwrap().to_vec())
                 .flatten()
                 .collect();
