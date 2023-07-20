@@ -1,3 +1,6 @@
-[submodule "libs/GenHTTP"]
-	path = libs/GenHTTP
-	url = git@github.com:Kaliumhexacyanoferrat/GenHTTP.git
+[submodule "libs/--force"]
+	path = libs/--force
+	url = git@github.com:OoLunar/HyperSharp.git
+[submodule "libs/HyperSharp"]
+	path = libs/HyperSharp
+	url = git@github.com:OoLunar/HyperSharp.git

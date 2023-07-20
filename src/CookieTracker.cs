@@ -150,7 +150,7 @@ namespace OoLunar.CookieClicker
                         HttpLogger.CookieUpdated(_logger, await updateCommand.ExecuteNonQueryAsync(), null);
                     }
                 }
-                catch(Exception exception)
+                catch (Exception exception)
                 {
                     HttpLogger.BakingError(_logger, exception);
                 }
@@ -187,7 +187,7 @@ namespace OoLunar.CookieClicker
                     {
                         command.Prepare();
                     }
-                    HttpLogger.DbConnection(_logger, null);
+                    HttpLogger.DbConnectionSuccess(_logger, null);
                 }
                 catch (Exception exception)
                 {

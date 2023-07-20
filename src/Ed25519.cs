@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace OoLunar.CookieClicker.Headers
+namespace OoLunar.CookieClicker
 {
     public static partial class Ed25519
     {

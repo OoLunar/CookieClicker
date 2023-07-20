@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using GenHTTP.Api.Infrastructure;
-using GenHTTP.Api.Protocol;
-using GenHTTP.Api.Routing;
+using System.Net;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Serilog;
@@ -12,42 +10,19 @@ using Serilog.Sinks.SystemConsole.Themes;
 
 namespace OoLunar.CookieClicker
 {
-    public sealed class HttpLogger : IServerCompanion
+    public static class HttpLogger
     {
-        internal static readonly Action<Microsoft.Extensions.Logging.ILogger, string, ushort, Exception?> ServerStart = LoggerMessage.Define<string, ushort>(LogLevel.Information, new EventId(0, "Server Setup"), "Server started on {Address}:{Port}");
-        internal static readonly Action<Microsoft.Extensions.Logging.ILogger, string, WebPath, int, string, Exception?> HttpHandleSuccess = LoggerMessage.Define<string, WebPath, int, string>(LogLevel.Debug, new EventId(1, "Http Request Handled"), "Handled {Method} request to {Path} with status {Status} {Response}");
-        internal static readonly Action<Microsoft.Extensions.Logging.ILogger, string, WebPath, int, string, Exception?> HttpHandleBadClient = LoggerMessage.Define<string, WebPath, int, string>(LogLevel.Information, new EventId(1, "Http Request Handled"), "Handled {Method} request to {Path} with status {Status} {Response}");
-        internal static readonly Action<Microsoft.Extensions.Logging.ILogger, string, WebPath, int, string, Exception?> HttpHandleInternalError = LoggerMessage.Define<string, WebPath, int, string>(LogLevel.Error, new EventId(1, "Http Request Handled"), "Handled {Method} request to {Path} with status {Status} {Response}");
+        internal static readonly Action<Microsoft.Extensions.Logging.ILogger, IPEndPoint, Exception?> ServerStart = LoggerMessage.Define<IPEndPoint>(LogLevel.Information, new EventId(0, "Server Setup"), "Server started on {ListeningAddress}");
+        internal static readonly Action<Microsoft.Extensions.Logging.ILogger, string, Uri, int, string, Exception?> HttpHandleSuccess = LoggerMessage.Define<string, Uri, int, string>(LogLevel.Debug, new EventId(1, "Http Request Handled"), "Handled {Method} request to {Path} with status {Status} {Response}");
+        internal static readonly Action<Microsoft.Extensions.Logging.ILogger, string, Uri, int, string, Exception?> HttpHandleBadClient = LoggerMessage.Define<string, Uri, int, string>(LogLevel.Information, new EventId(1, "Http Request Handled"), "Handled {Method} request to {Path} with status {Status} {Response}");
+        internal static readonly Action<Microsoft.Extensions.Logging.ILogger, string, Uri, int, string, Exception?> HttpHandleInternalError = LoggerMessage.Define<string, Uri, int, string>(LogLevel.Error, new EventId(1, "Http Request Handled"), "Handled {Method} request to {Path} with status {Status} {Response}");
         internal static readonly Action<Microsoft.Extensions.Logging.ILogger, Exception?> RegisterSlashCommands = LoggerMessage.Define(LogLevel.Information, new EventId(2, "SlashCommands registered"), "Registered slash commands.");
         internal static readonly Action<Microsoft.Extensions.Logging.ILogger, int, string, Exception?> RegisterSlashCommandsFailed = LoggerMessage.Define<int, string>(LogLevel.Error, new EventId(2, "SlashCommands failed to register"), "Failed to register slash commands: {HttpStatusCode} {ReasonPhrase}");
         internal static readonly Action<Microsoft.Extensions.Logging.ILogger, int, Exception?> CookieCreated = LoggerMessage.Define<int>(LogLevel.Debug, new EventId(3, "Cookie Database Operation"), "Created {Count:N0} cookies!");
         internal static readonly Action<Microsoft.Extensions.Logging.ILogger, int, Exception?> CookieUpdated = LoggerMessage.Define<int>(LogLevel.Debug, new EventId(3, "Cookie Database Operation"), "Updated {Count:N0} cookies!");
         internal static readonly Action<Microsoft.Extensions.Logging.ILogger, Exception?> BakingError = LoggerMessage.Define(LogLevel.Error, new EventId(3, "Cookie Database Operation"), "There was an error baking cookies!");
-        internal static readonly Action<Microsoft.Extensions.Logging.ILogger, Exception?> DbConnection = LoggerMessage.Define(LogLevel.Debug, new EventId(4, "Database"), "Connected to database.");
+        internal static readonly Action<Microsoft.Extensions.Logging.ILogger, Exception?> DbConnectionSuccess = LoggerMessage.Define(LogLevel.Debug, new EventId(4, "Database"), "Connected to database.");
         internal static readonly Action<Microsoft.Extensions.Logging.ILogger, Exception?> DbConnectionError = LoggerMessage.Define(LogLevel.Error, new EventId(4, "Database"), "Failed to connect to database.");
-
-        private readonly ILogger<HttpLogger> _logger;
-
-        public HttpLogger(ILogger<HttpLogger> logger) => _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        public void OnServerError(ServerErrorScope scope, Exception error) => _logger.LogError(error, "A {Scope} error has occured:", scope);
-        public void OnRequestHandled(IRequest request, IResponse response)
-        {
-            switch (response.Status.RawStatus)
-            {
-                case < 400:
-                    HttpHandleSuccess(_logger, request.Method.RawMethod, request.Target.Path, response.Status.RawStatus, response.Status.Phrase, null);
-                    break;
-                case >= 400 and < 500:
-                    HttpHandleBadClient(_logger, request.Method.RawMethod, request.Target.Path, response.Status.RawStatus, response.Status.Phrase, null);
-                    break;
-                case >= 500 and < 600:
-                    // Json error mapper will handle this with more information available.
-                    break;
-                default:
-                    HttpHandleInternalError(_logger, request.Method.RawMethod, request.Target.Path, response.Status.RawStatus, response.Status.Phrase, null);
-                    break;
-            }
-        }
 
         public static void ConfigureLogging(ILoggingBuilder loggingBuilder, IConfiguration configuration)
         {
