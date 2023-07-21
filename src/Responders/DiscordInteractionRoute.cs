@@ -15,7 +15,7 @@ using Remora.Rest.Core;
 namespace OoLunar.CookieClicker.Responders
 {
     [DependsOn<DiscordHeaderVerifier>()]
-    public sealed class DiscordInteractionRoute : IResponder
+    public sealed class DiscordInteractionRoute : IResponder<HyperContext, HyperStatus>
     {
         public string[] Implements { get; init; } = Array.Empty<string>();
 
@@ -39,7 +39,7 @@ namespace OoLunar.CookieClicker.Responders
 
         public async Task<Result<HyperStatus>> RespondAsync(HyperContext context)
         {
-            if (!context.Headers.TryGetValue("content-type", out IReadOnlyList<string>? contentType) || contentType.Count != 1 || contentType[0] != "application/json")
+            if (!context.Headers.TryGetValue("Content-Type", out IReadOnlyList<string>? contentType) || contentType.Count != 1 || contentType[0] != "application/json")
             {
                 return Result.Ok(new HyperStatus(HttpStatusCode.BadRequest, new(), "Invalid content type"));
             }

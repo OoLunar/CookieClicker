@@ -9,7 +9,7 @@ using OoLunar.HyperSharp;
 
 namespace OoLunar.CookieClicker.Responders
 {
-    public sealed class DiscordHeaderVerifier : IResponder
+    public sealed class DiscordHeaderVerifier : IResponder<HyperContext, HyperStatus>
     {
         public string[] Implements { get; init; } = new[] { "IDiscordHeaderVerifier" };
         private readonly byte[] _publicKey;
@@ -50,7 +50,7 @@ namespace OoLunar.CookieClicker.Responders
             Span<byte> signatureSpan = stackalloc byte[64];
             FromHex(signature[0], signatureSpan);
             return Ed25519.Verify(signatureSpan, message, _publicKey)
-                ? Task.FromResult(Result.Ok<HyperStatus>(default))
+                ? Task.FromResult(Result.Ok<HyperStatus>(default!))
                 : Task.FromResult(Result.Ok(new HyperStatus(HttpStatusCode.Unauthorized, new(), new Error("Invalid authentication headers"))));
         }
 
