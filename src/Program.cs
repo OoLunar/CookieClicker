@@ -1,9 +1,10 @@
 using System;
 using System.Net;
 using System.Threading.Tasks;
+using HyperSharp;
+using HyperSharp.Setup;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using OoLunar.HyperSharp;
 using Remora.Discord.API.Extensions;
 
 namespace OoLunar.CookieClicker
@@ -27,10 +28,9 @@ namespace OoLunar.CookieClicker
             serviceCollection.AddLogging(loggingBuilder => HttpLogger.ConfigureLogging(loggingBuilder, configuration));
             serviceCollection.AddOptions();
             serviceCollection.ConfigureDiscordJsonConverters("HyperSharp");
-            serviceCollection.ConfigureHyperJsonConverters("HyperSharp");
             serviceCollection.AddSingleton<CookieTracker>();
             serviceCollection.AddSingleton<DiscordSlashCommandHandler>();
-            serviceCollection.AddHyperSharp((serviceProvider, hyperConfiguration) =>
+            serviceCollection.AddHyperSharp((serviceProvider, builder) =>
             {
                 string? host = configuration.GetValue("server:address", "localhost")?.Trim();
                 if (string.IsNullOrWhiteSpace(host))
@@ -44,13 +44,13 @@ namespace OoLunar.CookieClicker
                     address = addresses.Length != 0 ? addresses[0] : throw new InvalidOperationException("The listening address could not be resolved to an IP address.");
                 }
 
-                hyperConfiguration.ListeningEndpoint = new IPEndPoint(address, configuration.GetValue("listening:port", 8080));
-                hyperConfiguration.AddResponders(typeof(Program).Assembly);
+                builder.ListeningEndpoint = new IPEndPoint(address, configuration.GetValue("listening:port", 8080));
+                builder.AddResponders(typeof(Program).Assembly);
             });
 
             IServiceProvider serviceProvider = serviceCollection.BuildServiceProvider();
             await serviceProvider.GetRequiredService<DiscordSlashCommandHandler>().RegisterAsync();
-            serviceProvider.GetRequiredService<HyperServer>().Run();
+            serviceProvider.GetRequiredService<HyperServer>().Start();
             await Task.Delay(-1);
         }
     }
