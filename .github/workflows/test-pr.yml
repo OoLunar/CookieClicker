@@ -12,7 +12,7 @@ env:
 jobs:
   build-pr:
     name: "Build PR #${{ github.event.pull_request.number }}"
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     if: "!contains(format('{0} {1}', github.event.head_commit.message, github.event.pull_request.title), '[ci-skip]')"
     steps:
       - name: Checkout
