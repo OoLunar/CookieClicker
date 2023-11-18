@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using OoLunar.CookieClicker.Attributes;
 using Remora.Discord.API.Abstractions.Objects;
 using Remora.Discord.API.Objects;
+using Remora.Rest.Core;
 
 namespace OoLunar.CookieClicker.Entities.CommandFramework
 {
@@ -20,9 +21,8 @@ namespace OoLunar.CookieClicker.Entities.CommandFramework
 
         public FrozenDictionary<CultureInfo, string> Names { get; init; } = FrozenDictionary<CultureInfo, string>.Empty;
         public FrozenDictionary<CultureInfo, string> Descriptions { get; init; } = FrozenDictionary<CultureInfo, string>.Empty;
-        public List<ImmutableCommand> Subcommands { get; init; } = new();
-
-        public List<ApplicationCommandOption> Options { get; init; } = new();
+        public FrozenSet<ImmutableCommand> Subcommands { get; init; } = FrozenSet<ImmutableCommand>.Empty;
+        public FrozenSet<IApplicationCommandOption> Options { get; init; } = FrozenSet<IApplicationCommandOption>.Empty;
         public FrozenDictionary<string, IAutoCompleteProvider> AutoCompleteProviders { get; init; } = FrozenDictionary<string, IAutoCompleteProvider>.Empty;
         public DiscordPermissionSet? RequiredPermissions { get; init; }
         public CommandSignature? ExecuteAsync { get; init; }
@@ -55,8 +55,8 @@ namespace OoLunar.CookieClicker.Entities.CommandFramework
 
         public unsafe ImmutableCommand(CommandAttribute commandAttribute, MethodInfo methodInfo, IServiceProvider serviceProvider) : this(methodInfo, commandAttribute, serviceProvider)
         {
-            List<ApplicationCommandOption> options = new();
-            Dictionary<string, IAutoCompleteProvider> autoCompleteProviders = new();
+            List<IApplicationCommandOption> options = [];
+            Dictionary<string, IAutoCompleteProvider> autoCompleteProviders = [];
             foreach (CommandOptionAttribute methodOption in methodInfo.GetCustomAttributes<CommandOptionAttribute>().OrderBy(x => x.Order))
             {
                 Dictionary<CultureInfo, string> optionNames;
@@ -95,13 +95,13 @@ namespace OoLunar.CookieClicker.Entities.CommandFramework
                 // This may require a custom attribute to mark the static methods as the ExecuteAsync entrypoint.
                 : ((interaction, serviceProvider) => (Task<InteractionResponse>)methodInfo.Invoke(ActivatorUtilities.CreateInstance(serviceProvider, methodInfo.DeclaringType!), new object[] { interaction })!);
 
-            Options = options.ToList();
+            Options = options.ToFrozenSet();
             AutoCompleteProviders = autoCompleteProviders.ToFrozenDictionary();
         }
 
         public ImmutableCommand(CommandAttribute commandAttribute, Type type, IServiceProvider serviceProvider) : this(type, commandAttribute, serviceProvider)
         {
-            List<ImmutableCommand> subcommands = new();
+            List<ImmutableCommand> subcommands = [];
             foreach (MethodInfo methodInfo in type.GetMethods())
             {
                 if (methodInfo.GetCustomAttribute<CommandAttribute>() is CommandAttribute methodCommandAttribute)
@@ -124,16 +124,19 @@ namespace OoLunar.CookieClicker.Entities.CommandFramework
                 }
             }
 
-            Subcommands = subcommands.Count == 0
-                ? throw new InvalidOperationException($"Command {commandAttribute.Name} has no subcommands or methods.")
-                : subcommands.ToList();
+            if (subcommands.Count == 0)
+            {
+                throw new InvalidOperationException($"Command {commandAttribute.Name} has no subcommands or methods.");
+            }
+
+            Subcommands = subcommands.ToFrozenSet();
         }
 
         public static explicit operator BulkApplicationCommandData(ImmutableCommand command) => new(
             command.Names[EnglishCultureInfo],
             command.Descriptions[EnglishCultureInfo],
             default,
-            command.Subcommands.Count == 0 ? command.Options : command.Subcommands.Select(subcommand => (ApplicationCommandOption)subcommand).ToList(),
+            new Optional<IReadOnlyList<IApplicationCommandOption>>(command.Subcommands.Count == 0 ? command.Options.ToList() : command.Subcommands.Select(subcommand => (ApplicationCommandOption)subcommand).ToList()),
             ApplicationCommandType.ChatInput,
             command.Names.ToFrozenDictionary(x => x.Key.Name, x => x.Value),
             command.Descriptions.ToFrozenDictionary(x => x.Key.Name, x => x.Value)
@@ -143,7 +146,7 @@ namespace OoLunar.CookieClicker.Entities.CommandFramework
             command.Subcommands.Count == 0 ? ApplicationCommandOptionType.SubCommand : ApplicationCommandOptionType.SubCommandGroup,
             command.Names[EnglishCultureInfo],
             command.Descriptions[EnglishCultureInfo],
-            Options: command.Options,
+            Options: new Optional<IReadOnlyList<IApplicationCommandOption>>(command.Options.ToList()),
             NameLocalizations: command.Names.ToFrozenDictionary(x => x.Key.Name, x => x.Value),
             DescriptionLocalizations: command.Descriptions.ToFrozenDictionary(x => x.Key.Name, x => x.Value)
         );

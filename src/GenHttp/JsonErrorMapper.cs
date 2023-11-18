@@ -8,10 +8,9 @@ using OoLunar.CookieClicker.Entities;
 
 namespace OoLunar.CookieClicker.GenHttp
 {
-    public sealed class JsonErrorMapper : IErrorMapper<Exception>
+    public sealed class JsonErrorMapper(ILogger<JsonErrorMapper> logger) : IErrorMapper<Exception>
     {
-        private readonly ILogger<JsonErrorMapper> _logger;
-        public JsonErrorMapper(ILogger<JsonErrorMapper> logger) => _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        private readonly ILogger<JsonErrorMapper> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         public ValueTask<IResponse?> GetNotFound(IRequest request, IHandler handler) => new(GetResponse(request, ResponseStatus.NotFound, new("Not found")));
         public ValueTask<IResponse?> Map(IRequest request, IHandler handler, Exception error)

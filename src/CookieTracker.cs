@@ -3,7 +3,6 @@ using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
@@ -18,7 +17,7 @@ namespace OoLunar.CookieClicker
 {
     public sealed class CookieTracker : IAsyncDisposable
     {
-        private readonly Dictionary<Ulid, CachedCookie> _cachedCookies = new();
+        private readonly Dictionary<Ulid, CachedCookie> _cachedCookies = [];
         private readonly NpgsqlConnection _databaseConnection;
         private readonly ILogger<CookieTracker> _logger;
         private readonly SemaphoreSlim _dbConnectionSemaphore = new(1, 1);
@@ -151,7 +150,7 @@ namespace OoLunar.CookieClicker
                 DbCommand command = _databaseCommands[DatabaseOperation.BatchFetch];
                 command.Parameters[0].Value = (long)channelId.Value;
                 using DbDataReader reader = command.ExecuteReader();
-                List<Cookie> cookies = new();
+                List<Cookie> cookies = [];
                 while (reader.Read())
                 {
                     cookies.Add(new Cookie()
@@ -186,13 +185,13 @@ namespace OoLunar.CookieClicker
                 }
 
                 await _semaphore.WaitAsync();
-                CachedCookie[] cachedCookies = _cachedCookies.Values.ToArray();
+                CachedCookie[] cachedCookies = [.. _cachedCookies.Values];
                 _semaphore.Release();
 
-                List<Guid> updatedCookieIds = new();
-                List<decimal> updatedCookieCount = new();
-                List<Guid> newCookieIds = new();
-                List<decimal> newCookieCount = new();
+                List<Guid> updatedCookieIds = [];
+                List<decimal> updatedCookieCount = [];
+                List<Guid> newCookieIds = [];
+                List<decimal> newCookieCount = [];
 
                 // Iterate over a copy of the unbaked cookies dictionary to avoid collection modified exceptions.
                 // This foreach loop is used to update the cookies in the database and remove them from cache.

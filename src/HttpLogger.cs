@@ -12,7 +12,7 @@ using Serilog.Sinks.SystemConsole.Themes;
 
 namespace OoLunar.CookieClicker
 {
-    public sealed class HttpLogger : IServerCompanion
+    public sealed class HttpLogger(ILogger<HttpLogger> logger) : IServerCompanion
     {
         internal static readonly Action<Microsoft.Extensions.Logging.ILogger, string, ushort, Exception?> ServerStart = LoggerMessage.Define<string, ushort>(LogLevel.Information, new EventId(0, "Server Setup"), "Server started on {Address}:{Port}");
         internal static readonly Action<Microsoft.Extensions.Logging.ILogger, string, WebPath, int, string, Exception?> HttpHandleSuccess = LoggerMessage.Define<string, WebPath, int, string>(LogLevel.Debug, new EventId(1, "Http Request Handled"), "Handled {Method} request to {Path} with status {Status} {Response}");
@@ -26,9 +26,8 @@ namespace OoLunar.CookieClicker
         internal static readonly Action<Microsoft.Extensions.Logging.ILogger, Exception?> DbConnection = LoggerMessage.Define(LogLevel.Debug, new EventId(4, "Database"), "Connected to database.");
         internal static readonly Action<Microsoft.Extensions.Logging.ILogger, Exception?> DbConnectionError = LoggerMessage.Define(LogLevel.Error, new EventId(4, "Database"), "Failed to connect to database.");
 
-        private readonly ILogger<HttpLogger> _logger;
+        private readonly ILogger<HttpLogger> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-        public HttpLogger(ILogger<HttpLogger> logger) => _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         public void OnServerError(ServerErrorScope scope, Exception error) => _logger.LogError(error, "A {Scope} error has occured:", scope);
         public void OnRequestHandled(IRequest request, IResponse response)
         {

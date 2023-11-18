@@ -4,22 +4,13 @@ using OoLunar.CookieClicker.Entities.CommandFramework;
 namespace OoLunar.CookieClicker.Attributes
 {
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
-    public class CommandAttribute : Attribute
+    public class CommandAttribute(string name, string description, Type? translationProvider = null) : Attribute
     {
-        public string Name { get; init; }
-        public string Description { get; init; }
-        public Type? TranslationProvider { get; init; }
-
-        public CommandAttribute(string name, string description)
-        {
-            Name = name;
-            Description = description;
-        }
+        public string Name { get; init; } = name;
+        public string Description { get; init; } = description;
+        public Type? TranslationProvider { get; init; } = translationProvider;
     }
 
     [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = false, Inherited = false)]
-    public sealed class CommandAttribute<T> : CommandAttribute where T : ITranslationProvider?
-    {
-        public CommandAttribute(string name, string description) : base(name, description) => TranslationProvider = typeof(T);
-    }
+    public sealed class CommandAttribute<T>(string name, string description) : CommandAttribute(name, description, typeof(T)) where T : ITranslationProvider?;
 }

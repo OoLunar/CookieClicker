@@ -64,7 +64,7 @@ namespace OoLunar.CookieClicker
         public async Task RegisterAsync(IServiceProvider serviceProvider)
         {
             _serviceProvider = serviceProvider;
-            List<ImmutableCommand> localCommands = new();
+            List<ImmutableCommand> localCommands = [];
             foreach (Type type in typeof(DiscordSlashCommandHandler).Assembly.GetExportedTypes())
             {
                 if (type.IsAbstract || type.GetCustomAttribute<CommandAttribute>() is not CommandAttribute commandAttribute)
@@ -94,7 +94,7 @@ namespace OoLunar.CookieClicker
 
         private void RegisterCommands(ApplicationCommand[] receivedCommands, List<ImmutableCommand> localCommands)
         {
-            Dictionary<string, ImmutableCommand> commands = new();
+            Dictionary<string, ImmutableCommand> commands = [];
             foreach (ApplicationCommand applicationCommand in receivedCommands)
             {
                 foreach (ImmutableCommand localCommand in localCommands)

@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using OoLunar.CookieClicker.Entities.CommandFramework;
@@ -7,15 +8,9 @@ using Remora.Discord.API.Objects;
 
 namespace OoLunar.CookieClicker.Commands
 {
-    public sealed class ButtonAutoCompleteProvider : IAutoCompleteProvider
+    public sealed class ButtonAutoCompleteProvider(CookieTracker cookieTracker) : IAutoCompleteProvider
     {
-        private CookieTracker _cookieTracker { get; }
-
-        public ButtonAutoCompleteProvider(CookieTracker cookieTracker)
-        {
-            ArgumentNullException.ThrowIfNull(cookieTracker, nameof(cookieTracker));
-            _cookieTracker = cookieTracker;
-        }
+        private readonly CookieTracker _cookieTracker = cookieTracker ?? throw new ArgumentNullException(nameof(cookieTracker));
 
         public Task<InteractionAutocompleteCallbackData> GetAutocompleteResultAsync(Interaction interaction, IApplicationCommandInteractionDataOption parameter)
         {
@@ -23,7 +18,7 @@ namespace OoLunar.CookieClicker.Commands
 
             return Task.FromResult(new InteractionAutocompleteCallbackData(_cookieTracker
                 .GetCookies(interaction.ChannelID.OrThrow(() => new InvalidOperationException("Missing channel id.")))
-                .Select(cookie => new ApplicationCommandOptionChoice(cookie.Clicks.ToString("N0"), cookie.Id.ToString()))
+                .Select(cookie => new ApplicationCommandOptionChoice(cookie.Clicks.ToString("N0", CultureInfo.InvariantCulture), cookie.Id.ToString()))
                 .ToList()));
         }
     }

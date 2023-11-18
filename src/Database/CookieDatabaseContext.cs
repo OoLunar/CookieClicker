@@ -20,7 +20,7 @@ namespace OoLunar.CookieClicker.Database
             ConfigurationBuilder configurationBuilder = new();
             configurationBuilder.Sources.Clear();
             configurationBuilder.AddJsonFile("config.json", true, true);
-            configurationBuilder.AddEnvironmentVariables("CookieClicker_");
+            configurationBuilder.AddEnvironmentVariables("CookieClicker__");
             configurationBuilder.AddCommandLine(args);
             IConfigurationRoot configuration = configurationBuilder.Build();
             DbContextOptionsBuilder<CookieDatabaseContext> optionsBuilder = new();

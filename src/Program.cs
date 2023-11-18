@@ -33,7 +33,7 @@ namespace OoLunar.CookieClicker
             ConfigurationBuilder configurationBuilder = new();
             configurationBuilder.Sources.Clear();
             configurationBuilder.AddJsonFile("config.json", true, true);
-            configurationBuilder.AddEnvironmentVariables("CookieClicker_");
+            configurationBuilder.AddEnvironmentVariables("CookieClicker__");
             configurationBuilder.AddCommandLine(args);
 
             IConfiguration configuration = configurationBuilder.Build();
@@ -51,6 +51,7 @@ namespace OoLunar.CookieClicker
                 httpClient.DefaultRequestHeaders.UserAgent.ParseAdd($"{userAgent} ({githubUrl}, v{version})");
                 return httpClient;
             });
+
             serviceCollection.AddSingleton<CookieTracker>();
             serviceCollection.AddSingleton<DiscordHeaderAuthentication>();
             serviceCollection.AddSingleton<DiscordSlashCommandHandler>();
