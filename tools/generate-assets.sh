@@ -29,7 +29,7 @@ regenerate()
 }
 
 # Iterate over each file matching the pattern "*.svg" in the "res" directory
-for file in res/*.svg; do
+find res -type f -name "*.svg" | while read -r file; do
     # Execute the "regenerate" command on each file
     regenerate "$file"
 done
