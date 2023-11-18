@@ -7,17 +7,26 @@ namespace OoLunar.CookieClicker
     {
         public const int SignatureBytes = 64;
         public const int PublicKeyBytes = 32;
+        public static readonly bool IsSupported;
 
         static Ed25519()
         {
             if (Init() == -1)
             {
+                IsSupported = false;
                 throw new InvalidOperationException("Failed to initialize libsodium.");
             }
+
+            IsSupported = true;
         }
 
         public static unsafe bool Verify(ReadOnlySpan<byte> signature, ReadOnlySpan<byte> message, ReadOnlySpan<byte> publicKey)
         {
+            if (!IsSupported)
+            {
+                throw new NotSupportedException("Ed25519 failed to initialize the native libsodium dependency.");
+            }
+
             if (signature.Length != SignatureBytes)
             {
                 throw new ArgumentException($"Signature must be {SignatureBytes} bytes in length.", nameof(signature));

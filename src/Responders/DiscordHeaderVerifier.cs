@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using HyperSharp.Protocol;
 using HyperSharp.Responders;
 using HyperSharp.Results;
@@ -10,7 +11,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace OoLunar.CookieClicker.Responders
 {
-    public sealed class DiscordHeaderVerifier : IResponder<HyperContext, HyperStatus>
+    public sealed class DiscordHeaderVerifier : IValueTaskResponder<HyperContext, HyperStatus>
     {
         public static Type[] Needs => Array.Empty<Type>();
         private readonly byte[] _publicKey;
@@ -24,20 +25,20 @@ namespace OoLunar.CookieClicker.Responders
             _publicKey = publicKey;
         }
 
-        public Result<HyperStatus> Respond(HyperContext context, CancellationToken cancellationToken = default)
+        public ValueTask<Result<HyperStatus>> RespondAsync(HyperContext context, CancellationToken cancellationToken = default)
         {
             if (!context.Headers.TryGetValues("X-Signature-Timestamp", out List<string>? timestamp) || !context.Headers.TryGetValues("X-Signature-Ed25519", out List<string>? signature))
             {
-                return Result.Success(new HyperStatus(HttpStatusCode.Unauthorized, new(), new Error("Missing authentication headers")));
+                return ValueTask.FromResult(Result.Success(new HyperStatus(HttpStatusCode.Unauthorized, new(), new Error("Missing authentication headers"))));
             }
             else if (timestamp.Count != 1 || signature.Count != 1)
             {
-                return Result.Success(new HyperStatus(HttpStatusCode.Unauthorized, new(), new Error("Invalid authentication headers")));
+                return ValueTask.FromResult(Result.Success(new HyperStatus(HttpStatusCode.Unauthorized, new(), new Error("Invalid authentication headers"))));
             }
 
             if (!context.Headers.TryGetValues("Content-Length", out List<string>? contentLength) || contentLength.Count != 1 || !int.TryParse(contentLength[0], out int length))
             {
-                return Result.Success(new HyperStatus(HttpStatusCode.Unauthorized, new(), new Error("Invalid or incorrect content length")));
+                return ValueTask.FromResult(Result.Success(new HyperStatus(HttpStatusCode.Unauthorized, new(), new Error("Invalid or incorrect content length"))));
             }
 
             int timestampLength = Encoding.UTF8.GetByteCount(timestamp[0]);
@@ -50,9 +51,9 @@ namespace OoLunar.CookieClicker.Responders
 
             Span<byte> signatureSpan = stackalloc byte[64];
             FromHex(signature[0], signatureSpan);
-            return Ed25519.Verify(signatureSpan, message, _publicKey)
-                ? Result.Success<HyperStatus>(default!)
-                : Result.Success(new HyperStatus(HttpStatusCode.Unauthorized, new(), new Error("Invalid authentication headers")));
+            return ValueTask.FromResult(Ed25519.Verify(signatureSpan, message, _publicKey)
+                ? Result.Success<HyperStatus>(default)
+                : Result.Success(new HyperStatus(HttpStatusCode.Unauthorized, new(), new Error("Invalid authentication headers"))));
         }
 
         private static void FromHex(ReadOnlySpan<char> hex, Span<byte> destination)

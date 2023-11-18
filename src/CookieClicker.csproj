@@ -1,13 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <DebugType>embedded</DebugType>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <Nullable>enable</Nullable>
     <OutputType>Exe</OutputType>
-    <PublishReadyToRun>true</PublishReadyToRun>
-    <PublishSingleFile>true</PublishSingleFile>
-    <SelfContained>true</SelfContained>
     <TargetFramework>net8.0</TargetFramework>
   </PropertyGroup>
   <PropertyGroup>
@@ -19,22 +14,24 @@
     <PackageProjectUrl>https://github.com/OoLunar/CookieClicker</PackageProjectUrl>
     <PackageReadmeFile>Readme.md</PackageReadmeFile>
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
+    <ProjectRoot>$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildProjectDirectory), "CookieClicker.sln"))</ProjectRoot>
     <RepositoryType>Git</RepositoryType>
     <RepositoryUrl>https://github.com/OoLunar/CookieClicker</RepositoryUrl>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="../res/config.json" CopyToOutputDirectory="Always" />
-    <EmbeddedResource Include="../License" />
-    <EmbeddedResource Include="../PrivacyPolicy.md" />
-    <EmbeddedResource Include="../Readme.md" />
-    <EmbeddedResource Include="../TermsOfService.md" />
-    <EmbeddedResource Include="../res/favicon.ico" />
-    <EmbeddedResource Include="../res/*.png" />
-    <EmbeddedResource Include="../res/debug/*" LinkBase="res" Condition="'$(Configuration)' == 'Debug'" />
-    <EmbeddedResource Include="../res/release/*" LinkBase="res" Condition="'$(Configuration)' == 'Release'" />
+    <None Include="$(ProjectRoot)/res/config.json" CopyToOutputDirectory="Always" />
+    <EmbeddedResource Include="$(ProjectRoot)/License" />
+    <EmbeddedResource Include="$(ProjectRoot)/PrivacyPolicy.md" />
+    <EmbeddedResource Include="$(ProjectRoot)/Readme.md" />
+    <EmbeddedResource Include="$(ProjectRoot)/TermsOfService.md" />
+    <EmbeddedResource Include="$(ProjectRoot)/res/*" />
+    <EmbeddedResource Remove="$(ProjectRoot)/res/debug/*" LinkBase="res" Condition="'$(Configuration)' != 'Debug'" />
+    <EmbeddedResource Remove="$(ProjectRoot)/res/release/*" LinkBase="res" Condition="'$(Configuration)' != 'Release'" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="$(ProjectRoot)/libs/HyperSharp/src/HyperSharp/HyperSharp.csproj" />
     <PackageReference Include="EFCore.NamingConventions" Version="7.0.2" />
+    <PackageReference Include="Markdig" Version="0.33.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="7.0.10" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" PrivateAssets="all" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="7.0.10" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="7.0.4" />
@@ -43,8 +40,8 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="7.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="7.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="7.0.0" />
+    <PackageReference Include="Nodsoft.Markdig.SyntaxHighlighting" Version="1.0.8" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="7.0.4" />
-    <PackageReference Include="OoLunar.HyperSharp" Version="0.3.0" />
     <PackageReference Include="Remora.Discord.API" Version="75.0.0" />
     <PackageReference Include="Serilog.Enrichers.Thread" Version="3.1.0" />
     <PackageReference Include="Serilog.Extensions.Hosting" Version="7.0.0" />

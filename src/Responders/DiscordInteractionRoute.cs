@@ -17,7 +17,7 @@ namespace OoLunar.CookieClicker.Responders
 {
     public sealed class DiscordInteractionRoute : ITaskResponder<HyperContext, HyperStatus>
     {
-        public static Type[] Needs => new Type[] { typeof(DiscordSlashCommandHandler) };
+        public static Type[] Needs => new Type[] { typeof(Router), typeof(DiscordHeaderVerifier) };
 
         private readonly JsonSerializerOptions _jsonSerializerOptions;
         private readonly CookieTracker _cookieTracker;
@@ -62,7 +62,7 @@ namespace OoLunar.CookieClicker.Responders
             await context.RespondAsync(response.IsSuccess
                 ? new HyperStatus(HttpStatusCode.OK, response.Value)
                 : new HyperStatus(HttpStatusCode.BadRequest, response.Errors),
-            _jsonSerializerOptions, cancellationToken);
+            HyperSerializers.JsonAsync, cancellationToken);
 
             return Result.Success(new HyperStatus(HttpStatusCode.OK));
         }
@@ -107,7 +107,7 @@ namespace OoLunar.CookieClicker.Responders
             }
             else
             {
-                return Result.Success<InteractionResponse>(new InteractionResponse(InteractionCallbackType.UpdateMessage, new Optional<OneOf.OneOf<IInteractionMessageCallbackData, IInteractionAutocompleteCallbackData, IInteractionModalCallbackData>>(new InteractionMessageCallbackData(
+                return Result.Success(new InteractionResponse(InteractionCallbackType.UpdateMessage, new Optional<OneOf.OneOf<IInteractionMessageCallbackData, IInteractionAutocompleteCallbackData, IInteractionModalCallbackData>>(new InteractionMessageCallbackData(
                     Content: $"The cookie has been clicked {_cookieTracker.Click(cookieId):N0} times!",
                     Components: new List<IActionRowComponent>()
                     {
