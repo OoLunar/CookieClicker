@@ -34,9 +34,6 @@ for file in res/*.svg; do
     regenerate "$file"
 done
 
-# Copy all resource files into the images directory
-cp res/*.{svg,png,ico} docs/images/
-
 # Check if any files were modified
 git config --global user.email "github-actions[bot]@users.noreply.github.com"
 git config --global user.name "github-actions[bot]"
