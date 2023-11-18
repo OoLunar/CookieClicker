@@ -1,33 +1,41 @@
 #!/bin/bash
 
-# Deps
-xbps-install -Sy ImageMagick > /dev/null
+# If svgo isn't installed, install it
+if ! command -v svgo &> /dev/null; then
+  # Check if yarn is installed
+  if ! command -v yarn &> /dev/null; then
+    if ! command -v apt-get &> /dev/null; then
+      echo "Unable to install svgo. Please install svgo or yarn manually."
+      exit 1
+    fi
+    sudo apt-get install -y yarn > /dev/null
+  fi
+  yarn global add svgo > /dev/null
+fi
 
-# Functions
+# Function to regenerate assets
 regenerate()
 {
   echo "Generating assets for $1"
-  PUSH_COMMIT=1
+
+  # Optimize the SVG file
+  svgo --multipass --quiet "$1"
 
   # Convert to PNG
-  convert "$1" -size 1024x1024 "${1%.*}.png"
+  convert -background none "$1" "${1%.*}.png"
 
   # Convert to ICO
-  # https://stackoverflow.com/a/15104985
-  convert "$1" -bordercolor white -border 0 \
-    \( -clone 0 -resize 16x16 \) \
-    \( -clone 0 -resize 32x32 \) \
-    \( -clone 0 -resize 48x48 \) \
-    \( -clone 0 -resize 64x64 \) \
-    -delete 0 -alpha off -colors 256 "${1%.*}.ico"
+  convert -background transparent -define "icon:auto-resize=16,24,32,64,128,256" "$1" "${1%.*}.ico"
 }
 
-# No need to remove the old files as they will be overwritten
-regenerate "res/debug/icon.svg"
-regenerate "res/release/icon.svg"
+# Iterate over each file matching the pattern "*.svg" in the "res" directory
+for file in res/*.svg; do
+    # Execute the "regenerate" command on each file
+    regenerate "$file"
+done
 
-# Copy the release icon and set it as the main logo
-cp "res/release/icon.png" "res/logo.png"
+# Copy all resource files into the images directory
+cp res/*.{svg,png,ico} docs/images/
 
 # Check if any files were modified
 git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -35,8 +43,8 @@ git config --global user.name "github-actions[bot]"
 git add res > /dev/null
 git diff-index --quiet HEAD
 if [ "$?" == "1" ]; then
-  git commit -m "[ci-skip] Regenerate icon files." > /dev/null
+  git commit -m "[ci-skip] Regenerate resource files." > /dev/null
   git push > /dev/null
 else
-  echo "No icon files were modified."
+  echo "No resource files were modified."
 fi

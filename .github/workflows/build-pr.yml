@@ -1,9 +1,15 @@
+name: Build PR
+
 on:
-  push:
-    branches:
-      - main
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
     paths:
       - "src/**"
+      - "*.sln"
 
 env:
   DOTNET_NOLOGO: 1
@@ -12,9 +18,9 @@ env:
   DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: 1
 
 jobs:
-  build-pr:
-    name: "Build Commit ${{ github.sha }}"
-    runs-on: self-hosted
+  build-commit:
+    name: "Build PR #${{ github.event.pull_request.number }}"
+    runs-on: ubuntu-latest
     if: "!contains(format('{0} {1}', github.event.head_commit.message, github.event.pull_request.title), '[ci-skip]')"
     steps:
       - name: Checkout
@@ -25,5 +31,7 @@ jobs:
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: 8
-      - name: Build
-        run: "dotnet build"
+      - name: Build Project
+        run: dotnet build
+      - name: Build Dockerfile
+        run: docker build -t oolunar/cookieclicker:latest .

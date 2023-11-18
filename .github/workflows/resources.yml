@@ -1,17 +1,19 @@
+name: Regenerate Resource Files
+
 on:
   push:
-    branches:
-      - main
     paths:
-      - "res/debug/icon.svg"
-      - "res/release/icon.svg"
-      - "tools/generate-assets.sh"
       - ".github/workflows/resources.yml"
+      - "res/**"
+      - "tools/generate-assets.sh"
+  workflow_dispatch:
 
 jobs:
-  build-pr:
-    name: "Regenerate Resource Files"
-    runs-on: self-hosted
+  regenerate-assets:
+    name: Regenerate Resource Files
+    runs-on: ubuntu-latest
+    permissions:
+        contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v3
